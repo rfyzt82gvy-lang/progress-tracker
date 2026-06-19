@@ -1105,7 +1105,22 @@
   document.addEventListener('DOMContentLoaded', () => {
     resyncCommitted();
     switchView(state.ui.view || 'home');
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        // 新バージョンを検知したら自動で取り込んで一度だけ再読み込み
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'activated' && navigator.serviceWorker.controller && !window.__ptReloaded) {
+              window.__ptReloaded = true;
+              location.reload();
+            }
+          });
+        });
+        reg.update();
+      }).catch(() => {});
+    }
   });
 
 })();
