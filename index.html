@@ -301,7 +301,9 @@
       <div class="sync-divider">データ</div>
       <div class="btn-row">
         <button class="btn" onclick="app.closeModal('menu-modal');app.openSync()">同期 &amp; バックアップ</button>
+        <button class="btn btn-danger-text" onclick="app.resetAllData()">すべてリセット</button>
       </div>
+      <p class="form-hint">「すべてリセット」はこの端末のテーマ・目標・記録を全部消して最初の状態に戻します（元に戻せません）。</p>
 
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('menu-modal')">キャンセル</button>

@@ -980,6 +980,17 @@
     render();
     showToast('設定を保存しました');
   }
+  function resetAllData() {
+    if (!confirm('この端末のテーマ・目標・記録をすべて消して最初の状態に戻します。\n元に戻せません。よろしいですか？')) return;
+    if (!confirm('本当にすべて削除しますか？（最終確認）')) return;
+    state = getDefaultState();
+    committedCompleted = 0;
+    state.ui.goalFilter = null;
+    closeModal('menu-modal');
+    persistNow();
+    switchView('home');
+    showToast('すべてのデータをリセットしました');
+  }
   // ツリーから完了済みのテーマを集める
   function collectArchived(themes, out, trail) {
     for (const t of themes) {
@@ -1082,7 +1093,7 @@
     openGoalModal, saveGoal, deleteGoal,
     onGoalCbChange, goalSelectAll, goalSelectNone,
     // menu / 完了済み
-    openMenu, saveMenu, unarchiveTheme, deleteArchivedTheme,
+    openMenu, saveMenu, unarchiveTheme, deleteArchivedTheme, resetAllData,
     // sync
     openSync: openSyncModal, generateSync: generateAndShowSyncCode, copySync: copySyncCode,
     loadSync: loadSyncCode, exportJSON: exportAllJSON, handleFileImport,
