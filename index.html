@@ -2,15 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="description" content="動画学習やタスクの進捗を管理するWebアプリ。テーマごとの進捗をトラッキングし、締切までの1日あたりの必要本数を自動計算します。">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="description" content="動画学習やタスクの進捗を管理するWebアプリ。1つの動画プールに対して複数の目標(締切)を設定し、重複する動画も1回の視聴で全目標に反映します。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="進捗">
   <meta name="theme-color" content="#101010">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
-  <meta name="apple-mobile-web-app-title" content="進捗">
   <title>進捗トラッカー</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -22,162 +22,116 @@
     <header class="app-header">
       <div class="header-left">
         <div class="header-icon">PT</div>
-        <h1 class="project-name" id="project-name">進捗トラッカー</h1>
+        <h1 class="view-title" id="view-title">ホーム</h1>
       </div>
       <div class="header-actions">
-        <button class="btn" id="btn-settings" onclick="app.openSettings()" title="プロジェクト設定">設定</button>
         <button class="btn" id="btn-sync" onclick="app.openSync()" title="同期 &amp; バックアップ">同期</button>
       </div>
     </header>
 
-    <!-- ===== Project Tabs ===== -->
-    <div class="project-tabs" id="project-tabs">
-      <!-- Rendered by JS -->
-    </div>
+    <!-- ============================================================
+         HOME VIEW
+         ============================================================ -->
+    <section class="view active" id="view-home">
 
-    <!-- ===== Backup Reminder ===== -->
-    <div class="backup-reminder" id="backup-reminder" style="display:none;"></div>
-
-    <!-- ===== Stats Grid ===== -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">総本数</div>
-        <div class="stat-value" id="stat-total">0</div>
-        <div class="stat-sub">全テーマ合計</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">完了</div>
-        <div class="stat-value" id="stat-completed">0</div>
-        <div class="stat-sub">視聴済み</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">残り</div>
-        <div class="stat-value" id="stat-remaining">0</div>
-        <div class="stat-sub">未視聴</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">必要ペース</div>
-        <div class="stat-value" id="stat-perday">—</div>
-        <div class="stat-sub" id="stat-perday-sub">締切未設定</div>
-      </div>
-    </div>
-
-    <!-- ===== Overall Progress ===== -->
-    <div class="overall-progress">
-      <div class="overall-progress-header">
-        <span class="overall-progress-label">全体の進捗</span>
-        <span class="overall-progress-percent" id="overall-percent">0.0%</span>
-      </div>
-      <div class="progress-bar-track">
-        <div class="progress-bar-fill" id="overall-bar" style="width: 0%;"></div>
-      </div>
-      <div class="overall-progress-detail">
-        <span id="overall-detail-left">0 / 0 完了</span>
-        <span class="deadline-badge" id="overall-deadline-badge" style="display:none;"></span>
-      </div>
-    </div>
-
-    <!-- ===== Today's Goal (締切設定時のみ表示) ===== -->
-    <div class="today-card" id="today-card" style="display:none;">
-      <div class="today-top">
-        <span class="today-label">今日の目標</span>
-        <span class="today-status" id="today-status">—</span>
-      </div>
-      <div class="today-bar-track">
-        <div class="today-bar-fill" id="today-bar" style="width:0%;"></div>
-      </div>
-      <div class="today-detail">
-        <span id="today-detail-left">—</span>
-        <span id="today-detail-right">—</span>
-      </div>
-    </div>
-
-    <!-- ===== Theme List ===== -->
-    <div class="section-header">
-      <h2 class="section-title">テーマ一覧</h2>
-    </div>
-
-    <div class="theme-list" id="theme-list">
-      <!-- Rendered by JS -->
-    </div>
-
-    <div class="add-theme-row">
-      <button class="add-theme-btn" id="btn-add-theme" onclick="app.openAddTheme()">
-        ＋ テーマを追加
-      </button>
-      <button class="add-theme-btn add-theme-btn-secondary" id="btn-bulk-add" onclick="app.openBulkAdd()">
-        一括入力
-      </button>
-    </div>
-
-  </div>
-
-  <!-- ===== Settings Modal ===== -->
-  <div class="modal-overlay" id="settings-modal">
-    <div class="modal" role="dialog" aria-labelledby="settings-title">
-      <h3 class="modal-title" id="settings-title">プロジェクト設定</h3>
-
-      <div class="form-group">
-        <label class="form-label" for="settings-project-name">プロジェクト名</label>
-        <input class="form-input" type="text" id="settings-project-name" placeholder="例: Qアシスト、資格勉強など">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="settings-deadline">締切日（任意）</label>
-        <input class="form-input" type="date" id="settings-deadline">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">休みの曜日</label>
-        <div class="rest-day-grid">
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-1" class="rest-day-cb">
-            <label for="rest-day-1" class="rest-day-label">月</label>
-          </div>
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-2" class="rest-day-cb">
-            <label for="rest-day-2" class="rest-day-label">火</label>
-          </div>
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-3" class="rest-day-cb">
-            <label for="rest-day-3" class="rest-day-label">水</label>
-          </div>
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-4" class="rest-day-cb">
-            <label for="rest-day-4" class="rest-day-label">木</label>
-          </div>
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-5" class="rest-day-cb">
-            <label for="rest-day-5" class="rest-day-label">金</label>
-          </div>
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-6" class="rest-day-cb">
-            <label for="rest-day-6" class="rest-day-label">土</label>
-          </div>
-          <div class="rest-day-item">
-            <input type="checkbox" id="rest-day-0" class="rest-day-cb">
-            <label for="rest-day-0" class="rest-day-label">日</label>
-          </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">総本数</div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-sub">全テーマ合計</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">完了</div>
+          <div class="stat-value" id="stat-completed">0</div>
+          <div class="stat-sub">視聴済み</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">今日</div>
+          <div class="stat-value" id="stat-today">0</div>
+          <div class="stat-sub">本 視聴</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">連続</div>
+          <div class="stat-value" id="stat-streak">0</div>
+          <div class="stat-sub">日 継続</div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">個別休日</label>
-        <div class="holiday-section">
-          <div class="holiday-add-row">
-            <input class="form-input" type="date" id="holiday-date-input">
-            <button class="btn btn-sm" onclick="app.addHoliday()">追加</button>
-          </div>
-          <div class="holiday-list" id="holiday-list"></div>
+      <div class="overall-progress">
+        <div class="overall-progress-header">
+          <span class="overall-progress-label">全体の進捗</span>
+          <span class="overall-progress-percent" id="overall-percent">0.0%</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="overall-bar" style="width: 0%;"></div>
+        </div>
+        <div class="overall-progress-detail">
+          <span id="overall-detail-left">0 / 0 完了</span>
         </div>
       </div>
 
-      <div class="modal-actions">
-        <button class="btn" onclick="app.closeModal('settings-modal')">キャンセル</button>
-        <button class="btn btn-primary" id="btn-save-settings" onclick="app.saveSettings()">保存</button>
+      <!-- Daily trend -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">日々の視聴本数</span>
+          <span class="streak-badge" id="streak-badge">🔥 0日連続</span>
+        </div>
+        <div class="trend-chart" id="trend-chart"><!-- bars rendered by JS --></div>
       </div>
-    </div>
+
+      <!-- Goals -->
+      <div class="section-header">
+        <h2 class="section-title">目標</h2>
+        <button class="btn btn-sm" onclick="app.openGoalModal()">＋ 追加</button>
+      </div>
+      <div class="goal-cards" id="home-goals"><!-- rendered by JS --></div>
+
+    </section>
+
+    <!-- ============================================================
+         POOL (動画) VIEW
+         ============================================================ -->
+    <section class="view" id="view-pool">
+
+      <div class="filter-chip-row" id="filter-chip-row" style="display:none;"></div>
+
+      <div class="theme-list" id="theme-list"><!-- rendered by JS --></div>
+
+      <div class="add-theme-row">
+        <button class="add-theme-btn" id="btn-add-theme" onclick="app.openAddTheme()">
+          ＋ テーマを追加
+        </button>
+        <button class="add-theme-btn add-theme-btn-secondary" id="btn-bulk-add" onclick="app.openBulkAdd()">
+          一括入力
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         GOALS (目標) VIEW
+         ============================================================ -->
+    <section class="view" id="view-goals">
+      <div class="goal-cards" id="goals-list"><!-- rendered by JS --></div>
+      <div class="add-theme-row">
+        <button class="add-theme-btn" onclick="app.openGoalModal()">＋ 目標を追加</button>
+      </div>
+    </section>
+
   </div>
+
+  <!-- ===== Bottom Navigation ===== -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-btn active" data-view="home" onclick="app.switchView('home')">
+      <span class="nav-ico">⌂</span><span class="nav-label">ホーム</span>
+    </button>
+    <button class="nav-btn" data-view="pool" onclick="app.switchView('pool')">
+      <span class="nav-ico">≣</span><span class="nav-label">動画</span>
+    </button>
+    <button class="nav-btn" data-view="goals" onclick="app.switchView('goals')">
+      <span class="nav-ico">◎</span><span class="nav-label">目標</span>
+    </button>
+  </nav>
 
   <!-- ===== Theme Modal ===== -->
   <div class="modal-overlay" id="theme-modal">
@@ -185,16 +139,11 @@
       <h3 class="modal-title" id="theme-modal-title">テーマを追加</h3>
       <div class="form-group">
         <label class="form-label" for="theme-name-input">テーマ名</label>
-        <input class="form-input" type="text" id="theme-name-input" placeholder="例: 民法、刑法、行政法など">
+        <input class="form-input" type="text" id="theme-name-input" placeholder="例: 循環器、呼吸器など">
       </div>
       <div class="form-group">
         <label class="form-label" for="theme-total-input">動画本数</label>
         <input class="form-input" type="number" id="theme-total-input" placeholder="例: 20" min="1">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="theme-deadline-input">期限日（任意）</label>
-        <input class="form-input" type="date" id="theme-deadline-input">
-        <p style="font-size:0.72rem;color:var(--text-2);margin-top:6px;">未設定の場合はプロジェクトの期限が使われます</p>
       </div>
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('theme-modal')">キャンセル</button>
@@ -203,43 +152,102 @@
     </div>
   </div>
 
+  <!-- ===== Bulk Input Modal ===== -->
+  <div class="modal-overlay" id="bulk-modal">
+    <div class="modal" role="dialog" aria-labelledby="bulk-title">
+      <h3 class="modal-title" id="bulk-title">テーマを一括入力</h3>
+      <div class="form-group">
+        <label class="form-label" for="bulk-parent-select">追加先</label>
+        <select class="form-input" id="bulk-parent-select">
+          <option value="">プール直下（トップレベル）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="bulk-textarea">テーマリスト</label>
+        <p class="form-hint">
+          1行に1テーマ。書式: <code>テーマ名 本数</code><br>
+          本数を省略すると親テーマ（グループ）になります。<br>
+          インデント（タブ or スペース2つ）でサブテーマを表現できます。
+        </p>
+        <textarea class="sync-textarea" id="bulk-textarea" rows="12" placeholder="例:
+循環器
+  心不全 12
+  虚血性心疾患 10
+呼吸器
+  COPD 6
+消化器 18"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="app.closeModal('bulk-modal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="app.saveBulk()">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Goal Modal ===== -->
+  <div class="modal-overlay" id="goal-modal">
+    <div class="modal" role="dialog" aria-labelledby="goal-modal-title">
+      <h3 class="modal-title" id="goal-modal-title">目標を追加</h3>
+      <div class="form-group">
+        <label class="form-label" for="goal-name-input">目標名</label>
+        <input class="form-input" type="text" id="goal-name-input" placeholder="例: CBT、内科テスト">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="goal-deadline-input">締切日</label>
+        <input class="form-input" type="date" id="goal-deadline-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">休みの曜日</label>
+        <div class="rest-day-grid" id="goal-restdays">
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-1" class="rest-day-cb"><label for="goal-rest-1" class="rest-day-label">月</label></div>
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-2" class="rest-day-cb"><label for="goal-rest-2" class="rest-day-label">火</label></div>
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-3" class="rest-day-cb"><label for="goal-rest-3" class="rest-day-label">水</label></div>
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-4" class="rest-day-cb"><label for="goal-rest-4" class="rest-day-label">木</label></div>
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-5" class="rest-day-cb"><label for="goal-rest-5" class="rest-day-label">金</label></div>
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-6" class="rest-day-cb"><label for="goal-rest-6" class="rest-day-label">土</label></div>
+          <div class="rest-day-item"><input type="checkbox" id="goal-rest-0" class="rest-day-cb"><label for="goal-rest-0" class="rest-day-label">日</label></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">対象の動画（テーマ）</label>
+        <p class="form-hint">チェックしたテーマがこの目標の対象です。親をチェックすると配下すべてが含まれます。</p>
+        <div class="theme-select-tree" id="goal-theme-select"><!-- rendered by JS --></div>
+      </div>
+      <div class="modal-actions modal-actions-split">
+        <button class="btn btn-danger-text" id="goal-delete-btn" onclick="app.deleteGoal()" style="display:none;">削除</button>
+        <div class="modal-actions-right">
+          <button class="btn" onclick="app.closeModal('goal-modal')">キャンセル</button>
+          <button class="btn btn-primary" onclick="app.saveGoal()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Sync & Backup Modal ===== -->
   <div class="modal-overlay" id="sync-modal">
     <div class="modal" role="dialog" aria-labelledby="sync-title">
       <h3 class="modal-title" id="sync-title">同期 &amp; バックアップ</h3>
-
-      <!-- Export sync code -->
       <div class="form-group">
         <label class="form-label">同期コードを生成</label>
-        <p style="font-size:0.75rem;color:var(--text-2);margin-bottom:8px;">
-          他のデバイスにデータを送るには、同期コードを生成してコピーしてください。
-        </p>
+        <p class="form-hint">他のデバイスにデータを送るには、同期コードを生成してコピーしてください。</p>
         <textarea class="sync-textarea" id="sync-export-area" readonly placeholder="「生成」ボタンを押すと同期コードが表示されます"></textarea>
-        <div style="display:flex;gap:8px;margin-top:8px;">
+        <div class="btn-row">
           <button class="btn btn-sm" onclick="app.generateSync()">生成</button>
           <button class="btn btn-sm" onclick="app.copySync()">コピー</button>
         </div>
       </div>
-
       <div class="sync-divider">または</div>
-
-      <!-- Import sync code -->
       <div class="form-group">
         <label class="form-label">同期コードを読み込み</label>
-        <p style="font-size:0.75rem;color:var(--text-2);margin-bottom:8px;">
-          別のデバイスで生成した同期コードを貼り付けてください。
-        </p>
+        <p class="form-hint">別のデバイスで生成した同期コードを貼り付けてください。</p>
         <textarea class="sync-textarea" id="sync-import-area" placeholder="ここに同期コードを貼り付け"></textarea>
-        <div style="margin-top:8px;">
+        <div class="btn-row">
           <button class="btn btn-sm btn-primary" onclick="app.loadSync()">読み込み</button>
         </div>
       </div>
-
       <div class="sync-divider">ファイルでバックアップ</div>
-
-      <!-- JSON export/import -->
       <div class="form-group">
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div class="btn-row">
           <button class="btn" onclick="app.exportJSON()">JSONダウンロード</button>
         </div>
         <div class="file-drop-zone" onclick="document.getElementById('import-file-input').click()">
@@ -247,44 +255,8 @@
           <input type="file" id="import-file-input" accept=".json" onchange="app.handleFileImport()">
         </div>
       </div>
-
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('sync-modal')">閉じる</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Bulk Input Modal ===== -->
-  <div class="modal-overlay" id="bulk-modal">
-    <div class="modal" role="dialog" aria-labelledby="bulk-title">
-      <h3 class="modal-title" id="bulk-title">テーマを一括入力</h3>
-
-      <div class="form-group">
-        <label class="form-label" for="bulk-parent-select">追加先</label>
-        <select class="form-input" id="bulk-parent-select">
-          <option value="">プロジェクト直下（トップレベル）</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="bulk-textarea">テーマリスト</label>
-        <p style="font-size:0.72rem;color:var(--text-2);margin-bottom:8px;line-height:1.6;">
-          1行に1テーマ。書式: <code style="background:var(--bg-3);padding:1px 5px;border-radius:3px;">テーマ名 本数</code><br>
-          本数を省略すると親テーマ（子を持つグループ）として追加されます。<br>
-          インデント（タブ or スペース2つ）でサブテーマを表現できます。
-        </p>
-        <textarea class="sync-textarea" id="bulk-textarea" rows="12" placeholder="例:
-民法 20
-刑法 15
-行政法
-  行政法総論 10
-  行政救済法 8
-  行政組織法 6"></textarea>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn" onclick="app.closeModal('bulk-modal')">キャンセル</button>
-        <button class="btn btn-primary" onclick="app.saveBulk()">追加</button>
       </div>
     </div>
   </div>

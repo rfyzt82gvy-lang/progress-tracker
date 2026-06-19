@@ -1085,3 +1085,104 @@ select.form-input {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
 }
+
+/* ============================================================
+   v3 — Views / Bottom nav / Home / Goals
+   ============================================================ */
+
+.view-title {
+  font-size: 1.1rem; font-weight: 700; color: var(--text-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.01em;
+}
+
+.view { display: none; }
+.view.active { display: block; animation: viewfade 0.18s var(--ease); }
+@keyframes viewfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* make room above the fixed bottom nav (incl. iPhone home indicator) */
+.app-container { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+
+/* ----- Bottom nav ----- */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex;
+  background: rgba(16, 16, 16, 0.92);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-0);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 9px 0 10px; background: none; border: none; cursor: pointer;
+  color: var(--text-2); font-family: var(--font); font-size: 0.64rem; font-weight: 600;
+  transition: color 0.12s;
+}
+.nav-btn.active { color: var(--text-0); }
+.nav-btn:active { opacity: 0.7; }
+.nav-ico { font-size: 1.2rem; line-height: 1; }
+.nav-label { letter-spacing: 0.04em; }
+
+/* ----- Panel ----- */
+.panel {
+  background: var(--bg-1); border: 1px solid var(--border-0); border-radius: var(--radius-m);
+  padding: 14px 16px; margin-bottom: 22px;
+}
+.panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.panel-title { font-size: 0.82rem; font-weight: 600; color: var(--text-1); }
+.streak-badge { font-size: 0.75rem; font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+/* ----- Trend chart ----- */
+.trend-chart { display: flex; align-items: stretch; gap: 3px; height: 112px; }
+.trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.trend-bar-wrap { width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; }
+.trend-count { font-size: 0.58rem; color: var(--text-1); font-variant-numeric: tabular-nums; line-height: 1; height: 9px; }
+.trend-bar { width: 100%; max-width: 16px; background: var(--text-1); border-radius: 2px; min-height: 2px; transition: height 0.3s var(--ease); }
+.trend-bar.today { background: var(--text-0); }
+.trend-bar.empty { background: var(--bg-3); }
+.trend-day { margin-top: 5px; font-size: 0.56rem; color: var(--text-2); display: flex; flex-direction: column; align-items: center; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.trend-dow { font-size: 0.5rem; }
+
+/* ----- Goal cards ----- */
+.goal-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+.goal-card {
+  background: var(--bg-1); border: 1px solid var(--border-0); border-radius: var(--radius-m);
+  border-left: 3px solid var(--goal-color, #888);
+  padding: 13px 15px; cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.goal-card:hover { border-color: var(--border-1); background: var(--bg-2); }
+.goal-card:active { background: var(--bg-2); }
+.goal-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.goal-card-name { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; font-weight: 600; color: var(--text-0); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--goal-color, #888); flex-shrink: 0; }
+.goal-card-bar { height: 5px; background: var(--bg-3); border-radius: 3px; overflow: hidden; }
+.goal-card-fill { height: 100%; background: var(--goal-color, #888); border-radius: 3px; transition: width 0.35s var(--ease); }
+.goal-card-detail { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 0.72rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.goal-card-pace { font-weight: 600; color: var(--text-1); }
+
+/* ----- Filter chip ----- */
+.filter-chip-row { margin-bottom: 14px; }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px 6px 11px;
+  background: var(--bg-2); border: 1px solid var(--border-0); border-left: 3px solid var(--goal-color, #888);
+  border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: var(--text-0);
+}
+.filter-chip-clear { width: 20px; height: 20px; border: none; background: var(--bg-3); color: var(--text-1); border-radius: 50%; cursor: pointer; font-size: 0.7rem; display: inline-flex; align-items: center; justify-content: center; }
+.filter-chip-clear:hover { background: var(--bg-hover); color: var(--text-0); }
+
+/* ----- Theme select (goal modal) ----- */
+.theme-select-tree { max-height: 240px; overflow-y: auto; border: 1px solid var(--border-0); border-radius: var(--radius-s); background: var(--bg-0); padding: 4px; }
+.theme-select-item { display: flex; align-items: center; gap: 9px; padding: 8px 6px; border-radius: var(--radius-s); cursor: pointer; font-size: 0.82rem; }
+.theme-select-item:hover { background: var(--bg-2); }
+.theme-select-name { flex: 1; color: var(--text-0); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-select-count { font-size: 0.7rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.goal-theme-cb { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--text-0); cursor: pointer; }
+
+/* ----- Misc ----- */
+.parent-count { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.form-hint { font-size: 0.72rem; color: var(--text-2); margin-bottom: 8px; line-height: 1.6; }
+.form-hint code { background: var(--bg-3); padding: 1px 5px; border-radius: 3px; }
+.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.modal-actions-split { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.modal-actions-right { display: flex; gap: 8px; }
+.btn-danger-text { color: var(--color-danger); border-color: transparent; background: transparent; }
+.btn-danger-text:hover { background: rgba(248, 113, 113, 0.08); border-color: transparent; }
