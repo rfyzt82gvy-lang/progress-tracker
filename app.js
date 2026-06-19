@@ -667,19 +667,30 @@
     showModal('bulk-modal');
     setTimeout(() => document.getElementById('bulk-textarea').focus(), 150);
   }
+  // 全角数字→半角、全角スペース→半角2つ
+  function normalizeBulkLine(s) {
+    return s.replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)).replace(/　/g, '  ');
+  }
+  // 「テーマ名 + 本数」を柔軟に解釈（タブ/空白/コロン/カンマ/括弧区切り・「12本」「(12)」等）
+  function parseNameCount(content) {
+    // 1) 末尾の「数字+本/個/コ/つ」→ 本数（区切り無しでも可）
+    let m = content.match(/^(.*?)[\s:：,，\(（\[]*(\d+)\s*(?:本|個|コ|つ)\s*[\)）\]]?\s*$/);
+    if (m && m[1].trim()) return { name: m[1].replace(/[\s:：,，\(（\[\-—~]+$/, '').trim(), total: parseInt(m[2], 10) };
+    // 2) 区切り（空白/コロン/カンマ/括弧）＋末尾数字 → 本数
+    m = content.match(/^(.+?)[\s:：,，\(（\[]+(\d+)\s*[\)）\]]?\s*$/);
+    if (m) return { name: m[1].trim(), total: parseInt(m[2], 10) };
+    // 3) 数字なし → グループ（親テーマ）
+    return { name: content.trim(), total: 0 };
+  }
   function parseBulkText(text) {
-    const lines = text.split('\n').filter(l => l.trim());
     const root = [];
     const stack = [{ children: root, indent: -1 }];
-    for (const line of lines) {
-      const stripped = line.replace(/\t/g, '  ');
-      const indent = stripped.search(/\S/);
-      const content = stripped.trim();
-      if (!content) continue;
-      const match = content.match(/^(.+?)\s+(\d+)\s*$/);
-      let name, total;
-      if (match) { name = match[1].trim(); total = parseInt(match[2], 10); }
-      else { name = content; total = 0; }
+    for (const raw of text.split('\n')) {
+      const norm = normalizeBulkLine(raw).replace(/\t/g, '  ');
+      if (!norm.trim()) continue;
+      const indent = norm.search(/\S/);
+      const { name, total } = parseNameCount(norm.trim());
+      if (!name) continue;
       const node = { id: generateId(), name, total, completed: 0, children: [], expanded: true };
       while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
       stack[stack.length - 1].children.push(node);
@@ -759,18 +770,43 @@
       return;
     }
     let html = '';
-    (function walk(themes, depth) {
+    (function walk(themes, depth, pids) {
       for (const t of themes) {
         const p = calcThemeProgress(t);
+        const checked = selectedSet.has(t.id);
         html += `<label class="theme-select-item" style="padding-left:${depth * 18 + 4}px">
-          <input type="checkbox" class="goal-theme-cb" value="${t.id}" ${selectedSet.has(t.id) ? 'checked' : ''}>
+          <input type="checkbox" class="goal-theme-cb" value="${t.id}" data-pids="${pids.join(',')}" data-explicit="${checked}" ${checked ? 'checked' : ''} onchange="app.onGoalCbChange(this)">
           <span class="theme-select-name">${escapeHtml(t.name)}</span>
           <span class="theme-select-count">${p.total}本</span>
+          <span class="theme-select-tag">親で選択中</span>
         </label>`;
-        if (t.children.length > 0) walk(t.children, depth + 1);
+        if (t.children.length > 0) walk(t.children, depth + 1, pids.concat(t.id));
       }
-    })(state.themes, 0);
+    })(state.themes, 0, []);
     container.innerHTML = html;
+    refreshGoalSelect();
+  }
+
+  // 親が選択されたら配下を「含む（covered）」表示にし、保存対象は最上位の選択ノードだけにする
+  function refreshGoalSelect() {
+    const cbs = [...document.querySelectorAll('.goal-theme-cb')];
+    const explicit = new Set(cbs.filter(c => c.dataset.explicit === 'true').map(c => c.value));
+    for (const cb of cbs) {
+      const pids = (cb.dataset.pids || '').split(',').filter(Boolean);
+      const covered = pids.some(pid => explicit.has(pid));
+      const item = cb.closest('.theme-select-item');
+      if (covered) { cb.checked = true; cb.disabled = true; item.classList.add('covered'); }
+      else { cb.disabled = false; cb.checked = cb.dataset.explicit === 'true'; item.classList.remove('covered'); }
+    }
+  }
+  function onGoalCbChange(cb) { cb.dataset.explicit = cb.checked ? 'true' : 'false'; refreshGoalSelect(); }
+  function goalSelectAll() {
+    document.querySelectorAll('.goal-theme-cb').forEach(cb => { if (!(cb.dataset.pids || '')) cb.dataset.explicit = 'true'; });
+    refreshGoalSelect();
+  }
+  function goalSelectNone() {
+    document.querySelectorAll('.goal-theme-cb').forEach(cb => { cb.dataset.explicit = 'false'; });
+    refreshGoalSelect();
   }
 
   function saveGoal() {
@@ -782,7 +818,7 @@
 
     const restDays = [];
     DAY_NAMES.forEach((_, i) => { const cb = document.getElementById('goal-rest-' + i); if (cb && cb.checked) restDays.push(i); });
-    const themeIds = [...document.querySelectorAll('.goal-theme-cb:checked')].map(cb => cb.value);
+    const themeIds = [...document.querySelectorAll('.goal-theme-cb')].filter(cb => cb.checked && !cb.disabled).map(cb => cb.value);
 
     if (goalId) {
       const goal = getGoalById(goalId);
@@ -921,6 +957,7 @@
     openBulkAdd, saveBulk,
     // goals
     openGoalModal, saveGoal, deleteGoal,
+    onGoalCbChange, goalSelectAll, goalSelectNone,
     // sync
     openSync: openSyncModal, generateSync: generateAndShowSyncCode, copySync: copySyncCode,
     loadSync: loadSyncCode, exportJSON: exportAllJSON, handleFileImport,

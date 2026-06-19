@@ -1099,8 +1099,12 @@ select.form-input {
 .view.active { display: block; animation: viewfade 0.18s var(--ease); }
 @keyframes viewfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-/* make room above the fixed bottom nav (incl. iPhone home indicator) */
-.app-container { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+/* iPhoneのステータスバー(時計/電池)と被らないよう上部にセーフエリア余白、
+   下はナビ＋ホームインジケータ分の余白を確保 */
+.app-container {
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+}
 
 /* ----- Bottom nav ----- */
 .bottom-nav {
@@ -1176,6 +1180,12 @@ select.form-input {
 .theme-select-name { flex: 1; color: var(--text-0); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .theme-select-count { font-size: 0.7rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .goal-theme-cb { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--text-0); cursor: pointer; }
+.goal-theme-cb:disabled { cursor: default; }
+.theme-select-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.theme-select-tag { display: none; font-size: 0.65rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.theme-select-item.covered { opacity: 0.55; }
+.theme-select-item.covered .theme-select-count { display: none; }
+.theme-select-item.covered .theme-select-tag { display: inline; }
 
 /* ----- Misc ----- */
 .parent-count { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; font-variant-numeric: tabular-nums; }

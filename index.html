@@ -165,9 +165,9 @@
       <div class="form-group">
         <label class="form-label" for="bulk-textarea">テーマリスト</label>
         <p class="form-hint">
-          1行に1テーマ。書式: <code>テーマ名 本数</code><br>
-          本数を省略すると親テーマ（グループ）になります。<br>
-          インデント（タブ or スペース2つ）でサブテーマを表現できます。
+          1行に1テーマ。<code>テーマ名 本数</code>（例: 心不全 12 / 心不全:12 / 心不全12本）。<br>
+          <b>表計算やサイトからのコピペOK</b>（タブ・コロン・カンマ区切り、全角数字も自動変換）。<br>
+          本数を省略すると親テーマ（グループ）に。インデント（タブ/スペース）でサブテーマを表現。
         </p>
         <textarea class="sync-textarea" id="bulk-textarea" rows="12" placeholder="例:
 循環器
@@ -209,8 +209,14 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">対象の動画（テーマ）</label>
-        <p class="form-hint">チェックしたテーマがこの目標の対象です。親をチェックすると配下すべてが含まれます。</p>
+        <div class="theme-select-toolbar">
+          <label class="form-label" style="margin:0">対象の動画（テーマ）</label>
+          <div class="btn-row" style="margin:0">
+            <button type="button" class="btn btn-sm" onclick="app.goalSelectAll()">すべて選択</button>
+            <button type="button" class="btn btn-sm" onclick="app.goalSelectNone()">解除</button>
+          </div>
+        </div>
+        <p class="form-hint">親をチェックすると配下すべてが含まれます（子は自動で「含む」表示に）。</p>
         <div class="theme-select-tree" id="goal-theme-select"><!-- rendered by JS --></div>
       </div>
       <div class="modal-actions modal-actions-split">
