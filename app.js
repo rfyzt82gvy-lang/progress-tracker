@@ -223,6 +223,19 @@
     state.history[k] = Math.max(0, (state.history[k] || 0) + delta);
   }
   function todayCount() { return state.history[todayISO()] || 0; }
+  // 削除時に「日々の記録」から amount 本を新しい日→古い日の順に差し引く（なかったことにする）
+  function removeFromHistory(amount) {
+    let rem = Math.max(0, amount);
+    if (!rem) return;
+    const keys = Object.keys(state.history).sort().reverse();
+    for (const k of keys) {
+      if (rem <= 0) break;
+      const take = Math.min(state.history[k] || 0, rem);
+      state.history[k] -= take;
+      rem -= take;
+      if (state.history[k] <= 0) delete state.history[k];
+    }
+  }
   function computeStreak() {
     let streak = 0;
     const d = new Date(); d.setHours(0, 0, 0, 0);
@@ -258,7 +271,7 @@
   // ===========================================================
   //  View routing
   // ===========================================================
-  const VIEW_TITLES = { home: 'ホーム', pool: '動画一覧', goals: '目標' };
+  const VIEW_TITLES = { home: 'ホーム', pool: 'リスト', goals: '目標' };
 
   function switchView(view) {
     state.ui.view = view;
@@ -662,6 +675,7 @@
     const theme = findThemeById(state.themes, editId);
     if (!theme) return;
     if (!confirm(`「${theme.name}」を削除しますか？\n（記録ごと完全に消えます。元に戻せません）`)) return;
+    removeFromHistory(calcThemeProgress(theme).completed); // 日々の記録からも減らす
     removeThemeById(state.themes, editId);
     state.goals.forEach(g => { g.themeIds = g.themeIds.filter(id => id !== editId); });
     closeModal('theme-modal');
@@ -1011,6 +1025,7 @@
     const theme = findThemeById(state.themes, themeId);
     if (!theme) return;
     if (!confirm(`「${theme.name}」を削除しますか？\n（記録ごと完全に消えます）`)) return;
+    removeFromHistory(calcThemeProgress(theme).completed); // 日々の記録からも減らす
     removeThemeById(state.themes, themeId);
     state.goals.forEach(g => { g.themeIds = g.themeIds.filter(id => id !== themeId); });
     renderArchiveList();
