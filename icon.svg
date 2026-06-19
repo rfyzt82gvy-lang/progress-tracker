@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#101010"/>
+  <rect x="128" y="128" width="256" height="256" rx="8" fill="none" stroke="#333" stroke-width="2"/>
+  <text x="256" y="288" text-anchor="middle" fill="#e8e8e8" font-family="Inter, -apple-system, sans-serif" font-size="180" font-weight="700">PT</text>
+</svg>
