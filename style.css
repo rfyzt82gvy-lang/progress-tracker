@@ -1196,3 +1196,18 @@ select.form-input {
 .modal-actions-right { display: flex; gap: 8px; }
 .btn-danger-text { color: var(--color-danger); border-color: transparent; background: transparent; }
 .btn-danger-text:hover { background: rgba(248, 113, 113, 0.08); border-color: transparent; }
+
+/* ----- Header menu button ----- */
+.btn-menu { font-size: 1.15rem; line-height: 1; padding: 5px 13px; letter-spacing: 1px; }
+
+/* ----- Theme edit actions (modal) ----- */
+.theme-edit-actions { display: flex; gap: 8px; margin-bottom: 14px; padding-top: 12px; border-top: 1px solid var(--border-0); }
+
+/* ----- Archive (完了済み) list ----- */
+.archive-list { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+.archive-empty { font-size: 0.78rem; color: var(--text-2); padding: 8px 2px; }
+.archive-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--bg-1); border: 1px solid var(--border-0); border-radius: var(--radius-s); }
+.archive-item-main { min-width: 0; flex: 1; }
+.archive-item-name { font-size: 0.85rem; font-weight: 600; color: var(--text-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.archive-item-sub { font-size: 0.7rem; color: var(--text-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.archive-item-actions { display: flex; gap: 6px; flex-shrink: 0; }

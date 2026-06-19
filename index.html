@@ -25,7 +25,7 @@
         <h1 class="view-title" id="view-title">ホーム</h1>
       </div>
       <div class="header-actions">
-        <button class="btn" id="btn-sync" onclick="app.openSync()" title="同期 &amp; バックアップ">同期</button>
+        <button class="btn btn-menu" id="btn-menu" onclick="app.openMenu()" title="メニュー" aria-label="メニュー">⋯</button>
       </div>
     </header>
 
@@ -36,7 +36,7 @@
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">総本数</div>
+          <div class="stat-label">総数</div>
           <div class="stat-value" id="stat-total">0</div>
           <div class="stat-sub">全テーマ合計</div>
         </div>
@@ -48,7 +48,7 @@
         <div class="stat-card">
           <div class="stat-label">今日</div>
           <div class="stat-value" id="stat-today">0</div>
-          <div class="stat-sub">本 視聴</div>
+          <div class="stat-sub">完了</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">連続</div>
@@ -139,11 +139,25 @@
       <h3 class="modal-title" id="theme-modal-title">テーマを追加</h3>
       <div class="form-group">
         <label class="form-label" for="theme-name-input">テーマ名</label>
-        <input class="form-input" type="text" id="theme-name-input" placeholder="例: 循環器、呼吸器など">
+        <input class="form-input" type="text" id="theme-name-input" placeholder="例: 循環器、民法、参考書など">
       </div>
       <div class="form-group">
-        <label class="form-label" for="theme-total-input">動画本数</label>
-        <input class="form-input" type="number" id="theme-total-input" placeholder="例: 20" min="1">
+        <label class="form-label" for="theme-total-input">数量（任意）</label>
+        <input class="form-input" type="number" id="theme-total-input" placeholder="空欄ならグループ（あとでサブテーマ）" min="0" inputmode="numeric">
+        <p class="form-hint">空欄のまま保存すると「グループ」になり、あとでサブテーマを追加して数を積み上げられます。</p>
+      </div>
+      <div class="form-group" id="theme-unit-group">
+        <label class="form-label" for="theme-unit-input">単位</label>
+        <input class="form-input" type="text" id="theme-unit-input" list="unit-presets" placeholder="本">
+        <datalist id="unit-presets">
+          <option value="本"></option><option value="ページ"></option><option value="問"></option>
+          <option value="章"></option><option value="個"></option><option value="回"></option>
+          <option value="時間"></option><option value="分"></option><option value="コマ"></option>
+        </datalist>
+      </div>
+      <div class="theme-edit-actions" id="theme-edit-actions" style="display:none;">
+        <button class="btn btn-sm" onclick="app.archiveTheme()">✓ 完了済みにする</button>
+        <button class="btn btn-sm btn-danger-text" onclick="app.deleteThemeFromModal()">削除</button>
       </div>
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('theme-modal')">キャンセル</button>
@@ -263,6 +277,35 @@
       </div>
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('sync-modal')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Menu / Settings Modal ===== -->
+  <div class="modal-overlay" id="menu-modal">
+    <div class="modal" role="dialog" aria-labelledby="menu-title">
+      <h3 class="modal-title" id="menu-title">メニュー</h3>
+
+      <div class="form-group">
+        <label class="form-label" for="default-unit-input">既定の単位</label>
+        <input class="form-input" type="text" id="default-unit-input" list="unit-presets" placeholder="本">
+        <p class="form-hint">新しいテーマの単位の初期値。テーマごとに個別変更もできます。</p>
+      </div>
+
+      <div class="sync-divider">完了済み</div>
+      <div class="form-group">
+        <p class="form-hint">完了したテーマをここに片付けられます（記録は残り、いつでも振り返り・復元できます）。</p>
+        <div class="archive-list" id="archive-list"><!-- rendered by JS --></div>
+      </div>
+
+      <div class="sync-divider">データ</div>
+      <div class="btn-row">
+        <button class="btn" onclick="app.closeModal('menu-modal');app.openSync()">同期 &amp; バックアップ</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" onclick="app.closeModal('menu-modal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="app.saveMenu()">保存</button>
       </div>
     </div>
   </div>

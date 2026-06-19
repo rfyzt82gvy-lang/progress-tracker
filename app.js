@@ -44,12 +44,14 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
   function getDefaultState() {
-    return { themes: [], goals: [], history: {}, ui: { view: 'home', goalFilter: null }, lastBackup: 0 };
+    return { themes: [], goals: [], history: {}, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null }, lastBackup: 0 };
   }
   function migrateThemes(themes) {
     for (const t of themes) {
       if (!Array.isArray(t.children)) t.children = [];
       if (t.expanded === undefined) t.expanded = true;
+      if (t.unit === undefined) t.unit = '';        // '' = 既定の単位を使う
+      if (t.archived === undefined) t.archived = false;
       migrateThemes(t.children);
     }
   }
@@ -61,6 +63,8 @@
       data.ui = data.ui || { view: 'home', goalFilter: null };
       if (!('goalFilter' in data.ui)) data.ui.goalFilter = null;
       data.lastBackup = data.lastBackup || 0;
+      data.settings = data.settings || { defaultUnit: '本' };
+      if (!data.settings.defaultUnit) data.settings.defaultUnit = '本';
       migrateThemes(data.themes);
       for (const g of data.goals) {
         g.restDays = g.restDays || [];
@@ -106,6 +110,10 @@
     saveData(state);
     persistTimer = null;
   }
+
+  // ---- Unit helpers ----
+  function defaultUnit() { return (state.settings && state.settings.defaultUnit) || '本'; }
+  function unitOf(theme) { return theme.unit || defaultUnit(); }
 
   // ---- Theme tree helpers ----
   function calcThemeProgress(theme) {
@@ -307,7 +315,7 @@
       const h = count > 0 ? Math.max(6, Math.round((count / max) * 100)) : 2;
       const isToday = formatDateISO(d) === todayISO();
       const dow = DAY_NAMES[d.getDay()];
-      return `<div class="trend-col" title="${formatDateISO(d)}: ${count}本">
+      return `<div class="trend-col" title="${formatDateISO(d)}: ${count}${defaultUnit()}">
         <div class="trend-bar-wrap">
           <div class="trend-count">${count > 0 ? count : ''}</div>
           <div class="trend-bar ${isToday ? 'today' : ''} ${count > 0 ? '' : 'empty'}" style="height:${h}%"></div>
@@ -354,8 +362,8 @@
     else if (isRestToday(goal)) paceText = '今日は休み';
     else if (effDays !== null && effDays > 0) {
       const target = Math.max(1, Math.ceil(remaining / effDays));
-      paceText = `今日 ${target}本`;
-    } else paceText = `残り${remaining}本`;
+      paceText = `今日 ${target}${defaultUnit()}`;
+    } else paceText = `残り${remaining}${defaultUnit()}`;
 
     const onclick = compact ? `onclick="app.filterByGoal('${goal.id}')"` : `onclick="app.openGoalModal('${goal.id}')"`;
     return `<div class="goal-card" ${onclick} style="--goal-color:${goal.color || '#888'}">
@@ -365,7 +373,7 @@
       </div>
       <div class="goal-card-bar"><div class="goal-card-fill" style="width:${percent}%"></div></div>
       <div class="goal-card-detail">
-        <span>${completed} / ${total}本 ・ ${percent.toFixed(0)}%</span>
+        <span>${completed} / ${total}${defaultUnit()} ・ ${percent.toFixed(0)}%</span>
         <span class="goal-card-pace">${paceText}</span>
       </div>
     </div>`;
@@ -409,13 +417,13 @@
 
   function renderThemes() {
     const container = document.getElementById('theme-list');
-    let themes = state.themes;
+    let themes = state.themes.filter(t => !t.archived); // 完了済みは一覧から隠す
 
     const gid = state.ui.goalFilter;
     const goal = gid ? getGoalById(gid) : null;
     if (goal) {
       const idset = new Set(goal.themeIds);
-      themes = state.themes.filter(t => themeHasMember(t, idset, false));
+      themes = themes.filter(t => themeHasMember(t, idset, false));
     }
 
     container.innerHTML = '';
@@ -448,7 +456,6 @@
     h += `</div><div class="theme-card-actions">`;
     h += `<button class="btn btn-icon btn-sm" onclick="app.openAddTheme('${theme.id}')" title="サブテーマ追加" aria-label="サブテーマ追加">+</button>`;
     h += `<button class="btn btn-icon btn-sm" onclick="app.editTheme('${theme.id}')" title="編集" aria-label="編集">✎</button>`;
-    h += `<button class="btn btn-icon btn-sm btn-danger" onclick="app.deleteTheme('${theme.id}')" title="削除" aria-label="削除">×</button>`;
     h += `</div></div>`;
 
     // 親のみ進捗線
@@ -467,10 +474,10 @@
           oninput="app.liveUpdate('${theme.id}',parseInt(this.value))"
           onchange="app.commitUpdate('${theme.id}',parseInt(this.value))" aria-label="進捗">
         <button class="btn-counter" onclick="app.incrementTheme('${theme.id}')" aria-label="+1">＋</button>
-        <span class="theme-count-display" id="count-${theme.id}"><strong>${completed}</strong> / ${total}本</span>
+        <span class="theme-count-display" id="count-${theme.id}"><strong>${completed}</strong> / ${total}${unitOf(theme)}</span>
       </div>`;
     } else if (hasChildren) {
-      h += `<div id="parent-count-${theme.id}" class="parent-count">${completed} / ${total}本 完了</div>`;
+      h += `<div id="parent-count-${theme.id}" class="parent-count">${completed} / ${total}${defaultUnit()} 完了</div>`;
     }
 
     card.innerHTML = h;
@@ -478,7 +485,7 @@
     if (hasChildren) {
       const childContainer = document.createElement('div');
       childContainer.className = `theme-children ${theme.expanded ? '' : 'collapsed'}`;
-      theme.children.forEach((child, ci) => renderThemeCard(childContainer, child, depth + 1, colorIdx * 10 + ci));
+      theme.children.forEach((child, ci) => { if (child.archived) return; renderThemeCard(childContainer, child, depth + 1, colorIdx * 10 + ci); });
       const subAddBtn = document.createElement('button');
       subAddBtn.className = 'sub-add-btn';
       subAddBtn.textContent = `＋ ${theme.name}にサブテーマ追加`;
@@ -499,7 +506,7 @@
     const sliderEl = document.getElementById('slider-' + themeId);
     const countEl = document.getElementById('count-' + themeId);
     if (sliderEl) sliderEl.style.setProperty('--p', pct);
-    if (countEl) countEl.innerHTML = '<strong>' + theme.completed + '</strong> / ' + theme.total + '本';
+    if (countEl) countEl.innerHTML = '<strong>' + theme.completed + '</strong> / ' + theme.total + unitOf(theme);
 
     const ancestors = findThemeAncestors(state.themes, themeId) || [];
     for (const anc of ancestors) {
@@ -510,7 +517,7 @@
       const ac = document.getElementById('parent-count-' + anc.id);
       if (af) af.style.width = apct + '%';
       if (at) at.textContent = Math.round(apct) + '%';
-      if (ac) ac.textContent = ap.completed + ' / ' + ap.total + '本 完了';
+      if (ac) ac.textContent = ap.completed + ' / ' + ap.total + defaultUnit() + ' 完了';
     }
   }
 
@@ -562,7 +569,9 @@
     const titleEl = document.getElementById('theme-modal-title');
     const nameInput = document.getElementById('theme-name-input');
     const totalInput = document.getElementById('theme-total-input');
+    const unitInput = document.getElementById('theme-unit-input');
     const saveBtn = document.getElementById('theme-save-btn');
+    const editActions = document.getElementById('theme-edit-actions');
 
     if (editId) {
       const theme = findThemeById(state.themes, editId);
@@ -571,14 +580,20 @@
       nameInput.value = theme.name;
       totalInput.value = theme.children.length > 0 ? '' : theme.total;
       totalInput.disabled = theme.children.length > 0;
+      unitInput.value = theme.unit || '';
+      unitInput.placeholder = defaultUnit();
       saveBtn.setAttribute('data-edit-id', editId);
       saveBtn.removeAttribute('data-parent-id');
+      editActions.style.display = '';
     } else {
       titleEl.textContent = parentId ? 'サブテーマを追加' : 'テーマを追加';
       nameInput.value = '';
       totalInput.value = '';
       totalInput.disabled = false;
+      unitInput.value = '';
+      unitInput.placeholder = defaultUnit();
       saveBtn.removeAttribute('data-edit-id');
+      editActions.style.display = 'none';
       if (parentId) saveBtn.setAttribute('data-parent-id', parentId);
       else saveBtn.removeAttribute('data-parent-id');
     }
@@ -589,19 +604,21 @@
   function saveTheme() {
     const nameInput = document.getElementById('theme-name-input');
     const totalInput = document.getElementById('theme-total-input');
+    const unitInput = document.getElementById('theme-unit-input');
     const saveBtn = document.getElementById('theme-save-btn');
     const editId = saveBtn.getAttribute('data-edit-id');
     const parentId = saveBtn.getAttribute('data-parent-id');
 
     const name = nameInput.value.trim();
-    const total = parseInt(totalInput.value, 10);
+    const total = parseInt(totalInput.value, 10) || 0; // 空欄/0 はグループ
+    const unit = unitInput.value.trim();
     if (!name) { nameInput.focus(); return; }
-    if (!totalInput.disabled && (isNaN(total) || total < 1)) { totalInput.focus(); return; }
 
     if (editId) {
       const theme = findThemeById(state.themes, editId);
       if (theme) {
         theme.name = name;
+        theme.unit = unit;
         if (theme.children.length === 0) {
           theme.total = total;
           if (theme.completed > total) theme.completed = total;
@@ -609,14 +626,12 @@
         showToast(`「${name}」を更新しました`);
       }
     } else {
-      const newTheme = { id: generateId(), name, total: total || 0, completed: 0, children: [], expanded: true };
+      const newTheme = { id: generateId(), name, total, completed: 0, unit, archived: false, children: [], expanded: true };
       if (parentId) {
         const parent = findThemeById(state.themes, parentId);
         if (parent) {
-          if (parent.children.length === 0 && parent.total > 0) {
-            parent.children.push({ id: generateId(), name: parent.name, total: parent.total, completed: parent.completed, children: [], expanded: true });
-            parent.total = 0; parent.completed = 0;
-          }
+          // 親に本数があってもダミーの同名子は作らない（グループ化するだけ）
+          if (parent.total > 0) { parent.total = 0; parent.completed = 0; }
           parent.children.push(newTheme);
           parent.expanded = true;
         }
@@ -629,6 +644,31 @@
     resyncCommitted();
     persistNow();
     render();
+  }
+
+  // テーマモーダル内からの完了済み/削除
+  function archiveTheme() {
+    const editId = document.getElementById('theme-save-btn').getAttribute('data-edit-id');
+    const theme = findThemeById(state.themes, editId);
+    if (!theme) return;
+    theme.archived = true;
+    closeModal('theme-modal');
+    persistNow();
+    render();
+    showToast(`「${theme.name}」を完了済みにしました`);
+  }
+  function deleteThemeFromModal() {
+    const editId = document.getElementById('theme-save-btn').getAttribute('data-edit-id');
+    const theme = findThemeById(state.themes, editId);
+    if (!theme) return;
+    if (!confirm(`「${theme.name}」を削除しますか？\n（記録ごと完全に消えます。元に戻せません）`)) return;
+    removeThemeById(state.themes, editId);
+    state.goals.forEach(g => { g.themeIds = g.themeIds.filter(id => id !== editId); });
+    closeModal('theme-modal');
+    resyncCommitted();
+    persistNow();
+    render();
+    showToast(`「${theme.name}」を削除しました`);
   }
 
   function deleteTheme(themeId) {
@@ -691,7 +731,7 @@
       const indent = norm.search(/\S/);
       const { name, total } = parseNameCount(norm.trim());
       if (!name) continue;
-      const node = { id: generateId(), name, total, completed: 0, children: [], expanded: true };
+      const node = { id: generateId(), name, total, completed: 0, unit: '', archived: false, children: [], expanded: true };
       while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
       stack[stack.length - 1].children.push(node);
       stack.push({ children: node.children, indent });
@@ -712,10 +752,8 @@
     if (parentId) {
       const parent = findThemeById(state.themes, parentId);
       if (parent) {
-        if (parent.children.length === 0 && parent.total > 0) {
-          parent.children.push({ id: generateId(), name: parent.name, total: parent.total, completed: parent.completed, children: [], expanded: true });
-          parent.total = 0; parent.completed = 0;
-        }
+        // 親に数量があってもダミーの同名子は作らずグループ化するだけ
+        if (parent.total > 0) { parent.total = 0; parent.completed = 0; }
         parent.children.push(...parsed);
         parent.expanded = true;
       }
@@ -777,7 +815,7 @@
         html += `<label class="theme-select-item" style="padding-left:${depth * 18 + 4}px">
           <input type="checkbox" class="goal-theme-cb" value="${t.id}" data-pids="${pids.join(',')}" data-explicit="${checked}" ${checked ? 'checked' : ''} onchange="app.onGoalCbChange(this)">
           <span class="theme-select-name">${escapeHtml(t.name)}</span>
-          <span class="theme-select-count">${p.total}本</span>
+          <span class="theme-select-count">${p.total}${unitOf(t)}</span>
           <span class="theme-select-tag">親で選択中</span>
         </label>`;
         if (t.children.length > 0) walk(t.children, depth + 1, pids.concat(t.id));
@@ -913,6 +951,76 @@
   }
 
   // ===========================================================
+  //  Menu / Settings / Archive(完了済み)
+  // ===========================================================
+  function openMenu() {
+    document.getElementById('default-unit-input').value = defaultUnit();
+    renderArchiveList();
+    showModal('menu-modal');
+  }
+  function saveMenu() {
+    const u = document.getElementById('default-unit-input').value.trim() || '本';
+    state.settings.defaultUnit = u;
+    closeModal('menu-modal');
+    persistNow();
+    render();
+    showToast('設定を保存しました');
+  }
+  // ツリーから完了済みのテーマを集める
+  function collectArchived(themes, out, trail) {
+    for (const t of themes) {
+      const path = trail ? trail + ' / ' + t.name : t.name;
+      if (t.archived) out.push({ theme: t, path });
+      else if (t.children.length) collectArchived(t.children, out, path);
+    }
+    return out;
+  }
+  function renderArchiveList() {
+    const container = document.getElementById('archive-list');
+    const items = collectArchived(state.themes, [], '');
+    if (items.length === 0) {
+      container.innerHTML = `<p class="archive-empty">完了済みのテーマはありません。</p>`;
+      return;
+    }
+    container.innerHTML = items.map(({ theme, path }) => {
+      const { total, completed } = calcThemeProgress(theme);
+      const unit = theme.unit || defaultUnit();
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return `<div class="archive-item">
+        <div class="archive-item-main">
+          <div class="archive-item-name">${escapeHtml(theme.name)}</div>
+          <div class="archive-item-sub">${completed} / ${total}${unit}・${pct}%</div>
+        </div>
+        <div class="archive-item-actions">
+          <button class="btn btn-sm" onclick="app.unarchiveTheme('${theme.id}')">戻す</button>
+          <button class="btn btn-sm btn-danger-text" onclick="app.deleteArchivedTheme('${theme.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  function unarchiveTheme(themeId) {
+    const theme = findThemeById(state.themes, themeId);
+    if (!theme) return;
+    theme.archived = false;
+    renderArchiveList();
+    persistNow();
+    render();
+    showToast(`「${theme.name}」を一覧に戻しました`);
+  }
+  function deleteArchivedTheme(themeId) {
+    const theme = findThemeById(state.themes, themeId);
+    if (!theme) return;
+    if (!confirm(`「${theme.name}」を削除しますか？\n（記録ごと完全に消えます）`)) return;
+    removeThemeById(state.themes, themeId);
+    state.goals.forEach(g => { g.themeIds = g.themeIds.filter(id => id !== themeId); });
+    renderArchiveList();
+    resyncCommitted();
+    persistNow();
+    render();
+    showToast(`「${theme.name}」を削除しました`);
+  }
+
+  // ===========================================================
   //  Modal helpers
   // ===========================================================
   function showModal(id) {
@@ -952,12 +1060,14 @@
     filterByGoal, clearGoalFilter,
     // themes
     openAddTheme: (parentId) => openThemeModal(parentId || null, null),
-    saveTheme, deleteTheme, editTheme, toggleTheme,
+    saveTheme, editTheme, toggleTheme, archiveTheme, deleteThemeFromModal,
     liveUpdate: liveUpdateProgress, commitUpdate, incrementTheme, decrementTheme,
     openBulkAdd, saveBulk,
     // goals
     openGoalModal, saveGoal, deleteGoal,
     onGoalCbChange, goalSelectAll, goalSelectNone,
+    // menu / 完了済み
+    openMenu, saveMenu, unarchiveTheme, deleteArchivedTheme,
     // sync
     openSync: openSyncModal, generateSync: generateAndShowSyncCode, copySync: copySyncCode,
     loadSync: loadSyncCode, exportJSON: exportAllJSON, handleFileImport,
