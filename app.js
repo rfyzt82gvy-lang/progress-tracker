@@ -52,6 +52,7 @@
       if (t.expanded === undefined) t.expanded = true;
       if (t.unit === undefined) t.unit = '';        // '' = 既定の単位を使う
       if (t.archived === undefined) t.archived = false;
+      if (t.note === undefined) t.note = '';
       migrateThemes(t.children);
     }
   }
@@ -162,6 +163,16 @@
     }
     return false;
   }
+  // id を含む兄弟配列を返す（並べ替え用）
+  function siblingArrayOf(id, arr) {
+    arr = arr || state.themes;
+    if (arr.some(t => t.id === id)) return arr;
+    for (const t of arr) {
+      const r = siblingArrayOf(id, t.children);
+      if (r) return r;
+    }
+    return null;
+  }
 
   // ---- Goals ----
   function getGoalById(id) { return state.goals.find(g => g.id === id) || null; }
@@ -246,6 +257,13 @@
     }
     return streak;
   }
+  // 直近14日の1日あたり平均（完了予測用）
+  function recentPace() {
+    let sum = 0;
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 14; i++) { sum += state.history[formatDateISO(d)] || 0; d.setDate(d.getDate() - 1); }
+    return sum / 14;
+  }
 
   // ---- Toast ----
   function showToast(message) {
@@ -309,7 +327,65 @@
 
     document.getElementById('streak-badge').textContent = `🔥 ${streak}日連続`;
     renderTrend();
+    renderCalendar();
     renderGoalCards('home-goals', true);
+  }
+
+  // 活動カレンダー（月間ヒートマップ）
+  let calMonth = null; // {y, m}（mは0始まり）。未設定なら今月
+  function calMax() {
+    let mx = 1;
+    for (const k in state.history) mx = Math.max(mx, state.history[k] || 0);
+    return mx;
+  }
+  function renderCalendar() {
+    const now = new Date();
+    if (!calMonth) calMonth = { y: now.getFullYear(), m: now.getMonth() };
+    const { y, m } = calMonth;
+    document.getElementById('cal-title').textContent = `${y}年${m + 1}月`;
+    const first = new Date(y, m, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const mx = calMax();
+    const todayKey = todayISO();
+
+    let html = DAY_NAMES.map(d => `<div class="cal-dow">${d}</div>`).join('');
+    for (let i = 0; i < startDow; i++) html += `<div class="cal-cell empty"></div>`;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const count = state.history[key] || 0;
+      const lvl = count <= 0 ? 0 : count >= mx * 0.66 ? 3 : count >= mx * 0.33 ? 2 : 1;
+      const isToday = key === todayKey ? ' today' : '';
+      html += `<button class="cal-cell lvl${lvl}${isToday}" onclick="app.openDayEdit('${key}')" title="${key}: ${count}${defaultUnit()}">
+        <span class="cal-day">${day}</span>${count > 0 ? `<span class="cal-count">${count}</span>` : ''}</button>`;
+    }
+    document.getElementById('calendar').innerHTML = html;
+  }
+  function calPrev() { const n = calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() }; const d = new Date(n.y, n.m - 1, 1); calMonth = { y: d.getFullYear(), m: d.getMonth() }; renderCalendar(); }
+  function calNext() { const n = calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() }; const d = new Date(n.y, n.m + 1, 1); calMonth = { y: d.getFullYear(), m: d.getMonth() }; renderCalendar(); }
+
+  function openDayEdit(dateKey) {
+    document.getElementById('day-modal').dataset.date = dateKey;
+    document.getElementById('day-date-label').textContent = dateKey;
+    document.getElementById('day-count-input').value = state.history[dateKey] || 0;
+    showModal('day-modal');
+  }
+  function saveDay() {
+    const dateKey = document.getElementById('day-modal').dataset.date;
+    const v = Math.max(0, parseInt(document.getElementById('day-count-input').value, 10) || 0);
+    if (v > 0) state.history[dateKey] = v; else delete state.history[dateKey];
+    closeModal('day-modal');
+    persistNow();
+    render();
+    showToast(`${dateKey} の記録を更新しました`);
+  }
+  function clearDay() {
+    const dateKey = document.getElementById('day-modal').dataset.date;
+    delete state.history[dateKey];
+    closeModal('day-modal');
+    persistNow();
+    render();
+    showToast(`${dateKey} の記録を消しました`);
   }
 
   function renderTrend() {
@@ -378,6 +454,25 @@
       paceText = `今日 ${target}${defaultUnit()}`;
     } else paceText = `残り${remaining}${defaultUnit()}`;
 
+    // 完了予測（直近ペースから）
+    let forecastHtml = '';
+    if (total > 0 && remaining > 0 && goal.deadline) {
+      const pace = recentPace();
+      if (pace > 0) {
+        const daysNeeded = Math.ceil(remaining / pace);
+        const fin = new Date(); fin.setHours(0, 0, 0, 0); fin.setDate(fin.getDate() + daysNeeded);
+        const dl = new Date(goal.deadline + 'T00:00:00');
+        const overDays = Math.round((fin - dl) / 86400000);
+        const inTime = fin <= dl;
+        const fcClass = inTime ? 'done' : 'danger';
+        const fcText = inTime ? `予測 ${fin.getMonth() + 1}/${fin.getDate()}・間に合う`
+          : `予測 ${fin.getMonth() + 1}/${fin.getDate()}・${overDays}日オーバー`;
+        forecastHtml = `<div class="goal-card-forecast ${fcClass}">${fcText}（最近 ${pace.toFixed(1)}${defaultUnit()}/日）</div>`;
+      } else {
+        forecastHtml = `<div class="goal-card-forecast">最近の記録がなく予測できません</div>`;
+      }
+    }
+
     const onclick = compact ? `onclick="app.filterByGoal('${goal.id}')"` : `onclick="app.openGoalModal('${goal.id}')"`;
     return `<div class="goal-card" ${onclick} style="--goal-color:${goal.color || '#888'}">
       <div class="goal-card-top">
@@ -389,6 +484,7 @@
         <span>${completed} / ${total}${defaultUnit()} ・ ${percent.toFixed(0)}%</span>
         <span class="goal-card-pace">${paceText}</span>
       </div>
+      ${forecastHtml}
     </div>`;
   }
 
@@ -493,6 +589,14 @@
       h += `<div id="parent-count-${theme.id}" class="parent-count">${completed} / ${total}${defaultUnit()} 完了</div>`;
     }
 
+    if (theme.note) {
+      if (/^https?:\/\//i.test(theme.note)) {
+        h += `<a class="theme-note is-link" href="${theme.note.replace(/"/g, '%22')}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 ${escapeHtml(theme.note)}</a>`;
+      } else {
+        h += `<div class="theme-note">${escapeHtml(theme.note)}</div>`;
+      }
+    }
+
     card.innerHTML = h;
 
     if (hasChildren) {
@@ -585,6 +689,7 @@
     const unitInput = document.getElementById('theme-unit-input');
     const doneInput = document.getElementById('theme-done-input');
     const doneGroup = document.getElementById('theme-done-group');
+    const noteInput = document.getElementById('theme-note-input');
     const recordBtn = document.getElementById('theme-record-btn');
     const saveBtn = document.getElementById('theme-save-btn');
     const editActions = document.getElementById('theme-edit-actions');
@@ -601,6 +706,7 @@
       unitInput.placeholder = defaultUnit();
       doneInput.value = isLeaf ? theme.completed : '';
       doneGroup.style.display = isLeaf ? '' : 'none';   // グループは完了が自動計算
+      noteInput.value = theme.note || '';
       recordBtn.style.display = isLeaf ? '' : 'none';   // 記録は末端テーマのみ
       saveBtn.setAttribute('data-edit-id', editId);
       saveBtn.removeAttribute('data-parent-id');
@@ -614,6 +720,7 @@
       unitInput.placeholder = defaultUnit();
       doneInput.value = '';
       doneGroup.style.display = '';
+      noteInput.value = '';
       saveBtn.removeAttribute('data-edit-id');
       editActions.style.display = 'none';
       if (parentId) saveBtn.setAttribute('data-parent-id', parentId);
@@ -628,6 +735,7 @@
     const totalInput = document.getElementById('theme-total-input');
     const unitInput = document.getElementById('theme-unit-input');
     const doneInput = document.getElementById('theme-done-input');
+    const noteInput = document.getElementById('theme-note-input');
     const saveBtn = document.getElementById('theme-save-btn');
     const editId = saveBtn.getAttribute('data-edit-id');
     const parentId = saveBtn.getAttribute('data-parent-id');
@@ -635,6 +743,7 @@
     const name = nameInput.value.trim();
     const total = parseInt(totalInput.value, 10) || 0; // 空欄/0 はグループ
     const unit = unitInput.value.trim();
+    const note = noteInput.value.trim();
     const done = Math.max(0, parseInt(doneInput.value, 10) || 0); // 既完了（記録には残さない）
     if (!name) { nameInput.focus(); return; }
 
@@ -643,6 +752,7 @@
       if (theme) {
         theme.name = name;
         theme.unit = unit;
+        theme.note = note;
         if (theme.children.length === 0) {
           theme.total = total;
           theme.completed = Math.min(done, total); // 完了済みを直接セット（履歴は変更しない）
@@ -650,7 +760,7 @@
         showToast(`「${name}」を更新しました`);
       }
     } else {
-      const newTheme = { id: generateId(), name, total, completed: Math.min(done, total), unit, archived: false, children: [], expanded: true };
+      const newTheme = { id: generateId(), name, total, completed: Math.min(done, total), unit, note, archived: false, children: [], expanded: true };
       if (parentId) {
         const parent = findThemeById(state.themes, parentId);
         if (parent) {
@@ -741,6 +851,19 @@
     showToast(`「${theme.name}」を削除しました`);
   }
   function editTheme(themeId) { openThemeModal(null, themeId); }
+  function moveTheme(dir) {
+    const id = document.getElementById('theme-save-btn').getAttribute('data-edit-id');
+    if (!id) return;
+    const arr = siblingArrayOf(id);
+    if (!arr) return;
+    const i = arr.findIndex(t => t.id === id);
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) { showToast(dir < 0 ? 'これ以上、上に動かせません' : 'これ以上、下に動かせません'); return; }
+    const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    persistNow();
+    render();
+    showToast(dir < 0 ? '上に移動しました' : '下に移動しました');
+  }
 
   // ---- Bulk ----
   function collectAllThemes(themes, result, depth) {
@@ -788,7 +911,7 @@
       const indent = norm.search(/\S/);
       const { name, total } = parseNameCount(norm.trim());
       if (!name) continue;
-      const node = { id: generateId(), name, total, completed: 0, unit: '', archived: false, children: [], expanded: true };
+      const node = { id: generateId(), name, total, completed: 0, unit: '', note: '', archived: false, children: [], expanded: true };
       while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
       stack[stack.length - 1].children.push(node);
       stack.push({ children: node.children, indent });
@@ -1130,7 +1253,9 @@
     // themes
     openAddTheme: (parentId) => openThemeModal(parentId || null, null),
     saveTheme, editTheme, toggleTheme, archiveTheme, deleteThemeFromModal,
-    openRecordModal, saveRecord,
+    openRecordModal, saveRecord, moveTheme,
+    // calendar / day edit
+    calPrev, calNext, openDayEdit, saveDay, clearDay,
     liveUpdate: liveUpdateProgress, commitUpdate, incrementTheme, decrementTheme,
     openBulkAdd, saveBulk,
     // goals

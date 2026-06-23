@@ -1211,3 +1211,29 @@ select.form-input {
 .archive-item-name { font-size: 0.85rem; font-weight: 600; color: var(--text-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .archive-item-sub { font-size: 0.7rem; color: var(--text-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .archive-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ----- Goal forecast ----- */
+.goal-card-forecast { margin-top: 7px; font-size: 0.7rem; font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.goal-card-forecast.done { color: var(--color-done); }
+.goal-card-forecast.danger { color: var(--color-danger); }
+
+/* ----- Theme note / link ----- */
+.theme-note { display: block; margin-top: 8px; font-size: 0.74rem; color: var(--text-1); word-break: break-all; }
+.theme-note.is-link { color: var(--color-info); text-decoration: none; }
+.theme-note.is-link:hover { text-decoration: underline; }
+
+/* ----- Activity calendar ----- */
+.cal-nav { background: none; border: none; color: var(--text-1); font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0 8px; }
+.cal-nav:hover { color: var(--text-0); }
+.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: 0.6rem; color: var(--text-2); padding-bottom: 2px; }
+.cal-cell { aspect-ratio: 1 / 1; border: none; border-radius: var(--radius-s); background: var(--bg-3); color: var(--text-1); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-family: var(--font); padding: 0; position: relative; transition: outline 0.12s; }
+.cal-cell.empty { background: transparent; cursor: default; }
+.cal-cell .cal-day { font-size: 0.62rem; }
+.cal-cell .cal-count { font-size: 0.6rem; font-weight: 700; }
+.cal-cell.lvl0 { background: var(--bg-2); color: var(--text-2); }
+.cal-cell.lvl1 { background: #2f3b33; color: #cfe9d6; }
+.cal-cell.lvl2 { background: #3f6b4d; color: #eafff0; }
+.cal-cell.lvl3 { background: var(--color-done); color: #0a1f12; }
+.cal-cell.today { outline: 2px solid var(--text-0); outline-offset: -1px; }
+.cal-cell:not(.empty):hover { outline: 1px solid var(--border-1); outline-offset: -1px; }
