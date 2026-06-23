@@ -44,7 +44,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
   function getDefaultState() {
-    return { themes: [], goals: [], history: {}, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null }, lastBackup: 0 };
+    return { themes: [], goals: [], history: {}, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null, hideCompleted: false }, lastBackup: 0 };
   }
   function migrateThemes(themes) {
     for (const t of themes) {
@@ -63,6 +63,7 @@
       data.history = data.history || {};
       data.ui = data.ui || { view: 'home', goalFilter: null };
       if (!('goalFilter' in data.ui)) data.ui.goalFilter = null;
+      if (!('hideCompleted' in data.ui)) data.ui.hideCompleted = false;
       data.lastBackup = data.lastBackup || 0;
       data.settings = data.settings || { defaultUnit: '本' };
       if (!data.settings.defaultUnit) data.settings.defaultUnit = '本';
@@ -379,9 +380,16 @@
     </span>`;
   }
 
+  // テーマが100%完了しているか（未完了だけ表示フィルタ用）
+  function isThemeComplete(theme) {
+    const { total, completed } = calcThemeProgress(theme);
+    return total > 0 && completed >= total;
+  }
+
   function renderThemes() {
     const container = document.getElementById('theme-list');
-    let themes = state.themes.filter(t => !t.archived); // 完了済みは一覧から隠す
+    const hide = state.ui.hideCompleted;
+    let themes = state.themes.filter(t => !t.archived); // 完了済み(アーカイブ)は隠す
 
     const gid = state.ui.goalFilter;
     const goal = gid ? getGoalById(gid) : null;
@@ -389,16 +397,33 @@
       const idset = new Set(goal.themeIds);
       themes = themes.filter(t => themeHasMember(t, idset, false));
     }
+    if (hide) themes = themes.filter(t => !isThemeComplete(t)); // 未完了だけ表示
+
+    // トグルボタンの状態
+    const toggle = document.getElementById('toggle-hide-completed');
+    if (toggle) {
+      toggle.classList.toggle('active', !!hide);
+      toggle.textContent = hide ? '未完了だけ表示中' : '未完了だけ';
+    }
 
     container.innerHTML = '';
     if (themes.length === 0) {
-      container.innerHTML = goal
-        ? `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-text">この目標に紐づくテーマがありません</div><div class="empty-state-sub">「目標」タブでテーマを選択してください</div></div>`
-        : `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-text">テーマがまだありません</div><div class="empty-state-sub">「＋ テーマを追加」または「一括入力」から追加しましょう</div></div>`;
+      const sub = hide ? '「未完了だけ」を解除すると完了分も表示されます'
+        : goal ? '「目標」タブでテーマを選択してください'
+        : '「＋ テーマを追加」または「一括入力」から追加しましょう';
+      const txt = hide ? '未完了のテーマはありません 🎉'
+        : goal ? 'この目標に紐づくテーマがありません' : 'テーマがまだありません';
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-text">${txt}</div><div class="empty-state-sub">${sub}</div></div>`;
       return;
     }
     let colorIdx = 0;
     themes.forEach(theme => { renderThemeCard(container, theme, 0, colorIdx); colorIdx++; });
+  }
+
+  function toggleHideCompleted() {
+    state.ui.hideCompleted = !state.ui.hideCompleted;
+    persistNow();
+    renderThemes();
   }
 
   function renderThemeCard(container, theme, depth, colorIdx) {
@@ -457,7 +482,7 @@
     if (hasChildren) {
       const childContainer = document.createElement('div');
       childContainer.className = `theme-children ${theme.expanded ? '' : 'collapsed'}`;
-      theme.children.forEach((child, ci) => { if (child.archived) return; renderThemeCard(childContainer, child, depth + 1, colorIdx * 10 + ci); });
+      theme.children.forEach((child, ci) => { if (child.archived) return; if (state.ui.hideCompleted && isThemeComplete(child)) return; renderThemeCard(childContainer, child, depth + 1, colorIdx * 10 + ci); });
       const subAddBtn = document.createElement('button');
       subAddBtn.className = 'sub-add-btn';
       subAddBtn.textContent = `＋ ${theme.name}にサブテーマ追加`;
@@ -1067,7 +1092,7 @@
   // ===========================================================
   window.app = {
     switchView,
-    filterByGoal, clearGoalFilter,
+    filterByGoal, clearGoalFilter, toggleHideCompleted,
     // themes
     openAddTheme: (parentId) => openThemeModal(parentId || null, null),
     saveTheme, editTheme, toggleTheme, archiveTheme, deleteThemeFromModal,

@@ -1201,6 +1201,12 @@ select.form-input {
 .stats-grid.stats-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .stats-grid.stats-grid-3 .stat-value { font-size: 1.5rem; }
 
+/* リストの未完了だけトグル */
+.list-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.toggle-chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-0); background: var(--bg-1); color: var(--text-1); font-family: var(--font); font-size: 0.76rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }
+.toggle-chip:hover { border-color: var(--border-1); color: var(--text-0); }
+.toggle-chip.active { background: var(--text-0); color: var(--bg-0); border-color: var(--text-0); }
+
 /* ----- Header menu button ----- */
 .btn-menu { font-size: 1.15rem; line-height: 1; padding: 5px 13px; letter-spacing: 1px; }
 
