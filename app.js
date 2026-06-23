@@ -583,18 +583,25 @@
     const nameInput = document.getElementById('theme-name-input');
     const totalInput = document.getElementById('theme-total-input');
     const unitInput = document.getElementById('theme-unit-input');
+    const doneInput = document.getElementById('theme-done-input');
+    const doneGroup = document.getElementById('theme-done-group');
+    const recordBtn = document.getElementById('theme-record-btn');
     const saveBtn = document.getElementById('theme-save-btn');
     const editActions = document.getElementById('theme-edit-actions');
 
     if (editId) {
       const theme = findThemeById(state.themes, editId);
       if (!theme) return;
+      const isLeaf = theme.children.length === 0;
       titleEl.textContent = 'テーマを編集';
       nameInput.value = theme.name;
-      totalInput.value = theme.children.length > 0 ? '' : theme.total;
-      totalInput.disabled = theme.children.length > 0;
+      totalInput.value = isLeaf ? theme.total : '';
+      totalInput.disabled = !isLeaf;
       unitInput.value = theme.unit || '';
       unitInput.placeholder = defaultUnit();
+      doneInput.value = isLeaf ? theme.completed : '';
+      doneGroup.style.display = isLeaf ? '' : 'none';   // グループは完了が自動計算
+      recordBtn.style.display = isLeaf ? '' : 'none';   // 記録は末端テーマのみ
       saveBtn.setAttribute('data-edit-id', editId);
       saveBtn.removeAttribute('data-parent-id');
       editActions.style.display = '';
@@ -605,6 +612,8 @@
       totalInput.disabled = false;
       unitInput.value = '';
       unitInput.placeholder = defaultUnit();
+      doneInput.value = '';
+      doneGroup.style.display = '';
       saveBtn.removeAttribute('data-edit-id');
       editActions.style.display = 'none';
       if (parentId) saveBtn.setAttribute('data-parent-id', parentId);
@@ -618,6 +627,7 @@
     const nameInput = document.getElementById('theme-name-input');
     const totalInput = document.getElementById('theme-total-input');
     const unitInput = document.getElementById('theme-unit-input');
+    const doneInput = document.getElementById('theme-done-input');
     const saveBtn = document.getElementById('theme-save-btn');
     const editId = saveBtn.getAttribute('data-edit-id');
     const parentId = saveBtn.getAttribute('data-parent-id');
@@ -625,6 +635,7 @@
     const name = nameInput.value.trim();
     const total = parseInt(totalInput.value, 10) || 0; // 空欄/0 はグループ
     const unit = unitInput.value.trim();
+    const done = Math.max(0, parseInt(doneInput.value, 10) || 0); // 既完了（記録には残さない）
     if (!name) { nameInput.focus(); return; }
 
     if (editId) {
@@ -634,12 +645,12 @@
         theme.unit = unit;
         if (theme.children.length === 0) {
           theme.total = total;
-          if (theme.completed > total) theme.completed = total;
+          theme.completed = Math.min(done, total); // 完了済みを直接セット（履歴は変更しない）
         }
         showToast(`「${name}」を更新しました`);
       }
     } else {
-      const newTheme = { id: generateId(), name, total, completed: 0, unit, archived: false, children: [], expanded: true };
+      const newTheme = { id: generateId(), name, total, completed: Math.min(done, total), unit, archived: false, children: [], expanded: true };
       if (parentId) {
         const parent = findThemeById(state.themes, parentId);
         if (parent) {
@@ -683,6 +694,38 @@
     persistNow();
     render();
     showToast(`「${theme.name}」を削除しました`);
+  }
+
+  // 過去の記録を追加（日付指定）：完了済みに加算しつつ、その日の履歴にも反映
+  function openRecordModal(themeId) {
+    if (!themeId) themeId = document.getElementById('theme-save-btn').getAttribute('data-edit-id');
+    const theme = findThemeById(state.themes, themeId);
+    if (!theme || theme.children.length > 0) return;
+    document.getElementById('record-modal').dataset.themeId = themeId;
+    document.getElementById('record-theme-name').textContent = `${theme.name}（現在 ${theme.completed} / ${theme.total}${unitOf(theme)}）`;
+    document.getElementById('record-date-input').value = todayISO();
+    document.getElementById('record-count-input').value = '';
+    closeModal('theme-modal');
+    showModal('record-modal');
+    setTimeout(() => document.getElementById('record-count-input').focus(), 150);
+  }
+  function saveRecord() {
+    const themeId = document.getElementById('record-modal').dataset.themeId;
+    const theme = findThemeById(state.themes, themeId);
+    if (!theme) return;
+    const count = parseInt(document.getElementById('record-count-input').value, 10) || 0;
+    const date = document.getElementById('record-date-input').value || todayISO();
+    if (count <= 0) { showToast('数を入力してください'); return; }
+    const before = theme.completed;
+    theme.completed = Math.min(theme.total, theme.completed + count);
+    const added = theme.completed - before;
+    if (added <= 0) { showToast('すでに上限に達しています'); return; }
+    state.history[date] = (state.history[date] || 0) + added;
+    resyncCommitted();
+    closeModal('record-modal');
+    persistNow();
+    render();
+    showToast(`${date} に ${added}${unitOf(theme)} を記録しました`);
   }
 
   function deleteTheme(themeId) {
@@ -1087,6 +1130,7 @@
     // themes
     openAddTheme: (parentId) => openThemeModal(parentId || null, null),
     saveTheme, editTheme, toggleTheme, archiveTheme, deleteThemeFromModal,
+    openRecordModal, saveRecord,
     liveUpdate: liveUpdateProgress, commitUpdate, incrementTheme, decrementTheme,
     openBulkAdd, saveBulk,
     // goals

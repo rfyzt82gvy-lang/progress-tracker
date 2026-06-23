@@ -155,13 +155,40 @@
           <option value="時間"></option><option value="分"></option><option value="コマ"></option>
         </datalist>
       </div>
+      <div class="form-group" id="theme-done-group">
+        <label class="form-label" for="theme-done-input">完了済み（任意）</label>
+        <input class="form-input" type="number" id="theme-done-input" placeholder="0" min="0" inputmode="numeric">
+        <p class="form-hint">登録時点ですでに終わっている分の数。日々のグラフには記録されません（過去の日付で記録したい場合は下の「過去の記録を追加」を使ってください）。</p>
+      </div>
       <div class="theme-edit-actions" id="theme-edit-actions" style="display:none;">
+        <button class="btn btn-sm" id="theme-record-btn" onclick="app.openRecordModal()">＋ 過去の記録を追加</button>
         <button class="btn btn-sm" onclick="app.archiveTheme()">✓ 完了済みにする</button>
         <button class="btn btn-sm btn-danger-text" onclick="app.deleteThemeFromModal()">削除</button>
       </div>
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('theme-modal')">キャンセル</button>
         <button class="btn btn-primary" id="theme-save-btn" onclick="app.saveTheme()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Record (past log) Modal ===== -->
+  <div class="modal-overlay" id="record-modal">
+    <div class="modal" role="dialog" aria-labelledby="record-title">
+      <h3 class="modal-title" id="record-title">過去の記録を追加</h3>
+      <p class="form-hint" id="record-theme-name"></p>
+      <div class="form-group">
+        <label class="form-label" for="record-date-input">日付</label>
+        <input class="form-input" type="date" id="record-date-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="record-count-input">この日に進めた数</label>
+        <input class="form-input" type="number" id="record-count-input" placeholder="例: 3" min="1" inputmode="numeric">
+        <p class="form-hint">完了済みに加算し、その日付の記録（グラフ・連続記録）に反映します。</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="app.closeModal('record-modal')">閉じる</button>
+        <button class="btn btn-primary" onclick="app.saveRecord()">追加</button>
       </div>
     </div>
   </div>
