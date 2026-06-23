@@ -227,44 +227,6 @@
     return (cfg.restDays || []).includes(dow) || (cfg.holidays || []).includes(todayISO());
   }
 
-  // ---- History / streak ----
-  function addHistory(delta) {
-    if (!delta) return;
-    const k = todayISO();
-    state.history[k] = Math.max(0, (state.history[k] || 0) + delta);
-  }
-  function todayCount() { return state.history[todayISO()] || 0; }
-  // 削除時に「日々の記録」から amount 本を新しい日→古い日の順に差し引く（なかったことにする）
-  function removeFromHistory(amount) {
-    let rem = Math.max(0, amount);
-    if (!rem) return;
-    const keys = Object.keys(state.history).sort().reverse();
-    for (const k of keys) {
-      if (rem <= 0) break;
-      const take = Math.min(state.history[k] || 0, rem);
-      state.history[k] -= take;
-      rem -= take;
-      if (state.history[k] <= 0) delete state.history[k];
-    }
-  }
-  function computeStreak() {
-    let streak = 0;
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    // 今日まだ0でも連続は切らさない（昨日から数える）
-    if (!state.history[formatDateISO(d)]) d.setDate(d.getDate() - 1);
-    while (state.history[formatDateISO(d)] > 0) {
-      streak++; d.setDate(d.getDate() - 1);
-    }
-    return streak;
-  }
-  // 直近14日の1日あたり平均（完了予測用）
-  function recentPace() {
-    let sum = 0;
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 14; i++) { sum += state.history[formatDateISO(d)] || 0; d.setDate(d.getDate() - 1); }
-    return sum / 14;
-  }
-
   // ---- Toast ----
   function showToast(message) {
     const container = document.getElementById('toast-container');
@@ -316,102 +278,14 @@
     const { total, completed } = calcAllProgress(state.themes);
     setText('stat-total', total);
     setText('stat-completed', completed);
-    setText('stat-today', todayCount());
-    const streak = computeStreak();
-    setText('stat-streak', streak);
+    setText('stat-remaining', total - completed);
 
     const percent = total > 0 ? (completed / total) * 100 : 0;
     setText('overall-percent', `${percent.toFixed(1)}%`);
     document.getElementById('overall-bar').style.width = `${percent}%`;
     setText('overall-detail-left', `${completed} / ${total} 完了`);
 
-    document.getElementById('streak-badge').textContent = `🔥 ${streak}日連続`;
-    renderTrend();
-    renderCalendar();
     renderGoalCards('home-goals', true);
-  }
-
-  // 活動カレンダー（月間ヒートマップ）
-  let calMonth = null; // {y, m}（mは0始まり）。未設定なら今月
-  function calMax() {
-    let mx = 1;
-    for (const k in state.history) mx = Math.max(mx, state.history[k] || 0);
-    return mx;
-  }
-  function renderCalendar() {
-    const now = new Date();
-    if (!calMonth) calMonth = { y: now.getFullYear(), m: now.getMonth() };
-    const { y, m } = calMonth;
-    document.getElementById('cal-title').textContent = `${y}年${m + 1}月`;
-    const first = new Date(y, m, 1);
-    const startDow = first.getDay();
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const mx = calMax();
-    const todayKey = todayISO();
-
-    let html = DAY_NAMES.map(d => `<div class="cal-dow">${d}</div>`).join('');
-    for (let i = 0; i < startDow; i++) html += `<div class="cal-cell empty"></div>`;
-    for (let day = 1; day <= daysInMonth; day++) {
-      const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const count = state.history[key] || 0;
-      const lvl = count <= 0 ? 0 : count >= mx * 0.66 ? 3 : count >= mx * 0.33 ? 2 : 1;
-      const isToday = key === todayKey ? ' today' : '';
-      html += `<button class="cal-cell lvl${lvl}${isToday}" onclick="app.openDayEdit('${key}')" title="${key}: ${count}${defaultUnit()}">
-        <span class="cal-day">${day}</span>${count > 0 ? `<span class="cal-count">${count}</span>` : ''}</button>`;
-    }
-    document.getElementById('calendar').innerHTML = html;
-  }
-  function calPrev() { const n = calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() }; const d = new Date(n.y, n.m - 1, 1); calMonth = { y: d.getFullYear(), m: d.getMonth() }; renderCalendar(); }
-  function calNext() { const n = calMonth || { y: new Date().getFullYear(), m: new Date().getMonth() }; const d = new Date(n.y, n.m + 1, 1); calMonth = { y: d.getFullYear(), m: d.getMonth() }; renderCalendar(); }
-
-  function openDayEdit(dateKey) {
-    document.getElementById('day-modal').dataset.date = dateKey;
-    document.getElementById('day-date-label').textContent = dateKey;
-    document.getElementById('day-count-input').value = state.history[dateKey] || 0;
-    showModal('day-modal');
-  }
-  function saveDay() {
-    const dateKey = document.getElementById('day-modal').dataset.date;
-    const v = Math.max(0, parseInt(document.getElementById('day-count-input').value, 10) || 0);
-    if (v > 0) state.history[dateKey] = v; else delete state.history[dateKey];
-    closeModal('day-modal');
-    persistNow();
-    render();
-    showToast(`${dateKey} の記録を更新しました`);
-  }
-  function clearDay() {
-    const dateKey = document.getElementById('day-modal').dataset.date;
-    delete state.history[dateKey];
-    closeModal('day-modal');
-    persistNow();
-    render();
-    showToast(`${dateKey} の記録を消しました`);
-  }
-
-  function renderTrend() {
-    const container = document.getElementById('trend-chart');
-    const days = [];
-    const base = new Date(); base.setHours(0, 0, 0, 0);
-    let max = 1;
-    for (let i = TREND_DAYS - 1; i >= 0; i--) {
-      const d = new Date(base); d.setDate(d.getDate() - i);
-      const key = formatDateISO(d);
-      const count = state.history[key] || 0;
-      max = Math.max(max, count);
-      days.push({ d, key, count });
-    }
-    container.innerHTML = days.map(({ d, count }) => {
-      const h = count > 0 ? Math.max(6, Math.round((count / max) * 100)) : 2;
-      const isToday = formatDateISO(d) === todayISO();
-      const dow = DAY_NAMES[d.getDay()];
-      return `<div class="trend-col" title="${formatDateISO(d)}: ${count}${defaultUnit()}">
-        <div class="trend-bar-wrap">
-          <div class="trend-count">${count > 0 ? count : ''}</div>
-          <div class="trend-bar ${isToday ? 'today' : ''} ${count > 0 ? '' : 'empty'}" style="height:${h}%"></div>
-        </div>
-        <div class="trend-day">${d.getDate()}<span class="trend-dow">${dow}</span></div>
-      </div>`;
-    }).join('');
   }
 
   function renderGoalCards(containerId, compact) {
@@ -451,27 +325,9 @@
     else if (isRestToday(goal)) paceText = '今日は休み';
     else if (effDays !== null && effDays > 0) {
       const target = Math.max(1, Math.ceil(remaining / effDays));
-      paceText = `今日 ${target}${defaultUnit()}`;
+      const label = (goal.restDays || []).length > 0 ? '稼働1日' : '1日';
+      paceText = `${label} ${target}${defaultUnit()}`;
     } else paceText = `残り${remaining}${defaultUnit()}`;
-
-    // 完了予測（直近ペースから）
-    let forecastHtml = '';
-    if (total > 0 && remaining > 0 && goal.deadline) {
-      const pace = recentPace();
-      if (pace > 0) {
-        const daysNeeded = Math.ceil(remaining / pace);
-        const fin = new Date(); fin.setHours(0, 0, 0, 0); fin.setDate(fin.getDate() + daysNeeded);
-        const dl = new Date(goal.deadline + 'T00:00:00');
-        const overDays = Math.round((fin - dl) / 86400000);
-        const inTime = fin <= dl;
-        const fcClass = inTime ? 'done' : 'danger';
-        const fcText = inTime ? `予測 ${fin.getMonth() + 1}/${fin.getDate()}・間に合う`
-          : `予測 ${fin.getMonth() + 1}/${fin.getDate()}・${overDays}日オーバー`;
-        forecastHtml = `<div class="goal-card-forecast ${fcClass}">${fcText}（最近 ${pace.toFixed(1)}${defaultUnit()}/日）</div>`;
-      } else {
-        forecastHtml = `<div class="goal-card-forecast">最近の記録がなく予測できません</div>`;
-      }
-    }
 
     const onclick = compact ? `onclick="app.filterByGoal('${goal.id}')"` : `onclick="app.openGoalModal('${goal.id}')"`;
     return `<div class="goal-card" ${onclick} style="--goal-color:${goal.color || '#888'}">
@@ -484,7 +340,6 @@
         <span>${completed} / ${total}${defaultUnit()} ・ ${percent.toFixed(0)}%</span>
         <span class="goal-card-pace">${paceText}</span>
       </div>
-      ${forecastHtml}
     </div>`;
   }
 
@@ -642,9 +497,6 @@
     const theme = findThemeById(state.themes, themeId);
     if (!theme) return;
     theme.completed = Math.max(0, Math.min(value, theme.total));
-    const now = calcAllProgress(state.themes).completed;
-    addHistory(now - committedCompleted); // ドラッグ/増減で先に書き換わっても正しい差分を記録
-    committedCompleted = now;
     liveUpdateProgress(themeId, theme.completed);
     persistNow();
   }
@@ -795,8 +647,7 @@
     const editId = document.getElementById('theme-save-btn').getAttribute('data-edit-id');
     const theme = findThemeById(state.themes, editId);
     if (!theme) return;
-    if (!confirm(`「${theme.name}」を削除しますか？\n（記録ごと完全に消えます。元に戻せません）`)) return;
-    removeFromHistory(calcThemeProgress(theme).completed); // 日々の記録からも減らす
+    if (!confirm(`「${theme.name}」を削除しますか？\n（元に戻せません）`)) return;
     removeThemeById(state.themes, editId);
     state.goals.forEach(g => { g.themeIds = g.themeIds.filter(id => id !== editId); });
     closeModal('theme-modal');
@@ -804,38 +655,6 @@
     persistNow();
     render();
     showToast(`「${theme.name}」を削除しました`);
-  }
-
-  // 過去の記録を追加（日付指定）：完了済みに加算しつつ、その日の履歴にも反映
-  function openRecordModal(themeId) {
-    if (!themeId) themeId = document.getElementById('theme-save-btn').getAttribute('data-edit-id');
-    const theme = findThemeById(state.themes, themeId);
-    if (!theme || theme.children.length > 0) return;
-    document.getElementById('record-modal').dataset.themeId = themeId;
-    document.getElementById('record-theme-name').textContent = `${theme.name}（現在 ${theme.completed} / ${theme.total}${unitOf(theme)}）`;
-    document.getElementById('record-date-input').value = todayISO();
-    document.getElementById('record-count-input').value = '';
-    closeModal('theme-modal');
-    showModal('record-modal');
-    setTimeout(() => document.getElementById('record-count-input').focus(), 150);
-  }
-  function saveRecord() {
-    const themeId = document.getElementById('record-modal').dataset.themeId;
-    const theme = findThemeById(state.themes, themeId);
-    if (!theme) return;
-    const count = parseInt(document.getElementById('record-count-input').value, 10) || 0;
-    const date = document.getElementById('record-date-input').value || todayISO();
-    if (count <= 0) { showToast('数を入力してください'); return; }
-    const before = theme.completed;
-    theme.completed = Math.min(theme.total, theme.completed + count);
-    const added = theme.completed - before;
-    if (added <= 0) { showToast('すでに上限に達しています'); return; }
-    state.history[date] = (state.history[date] || 0) + added;
-    resyncCommitted();
-    closeModal('record-modal');
-    persistNow();
-    render();
-    showToast(`${date} に ${added}${unitOf(theme)} を記録しました`);
   }
 
   function deleteTheme(themeId) {
@@ -1201,8 +1020,7 @@
   function deleteArchivedTheme(themeId) {
     const theme = findThemeById(state.themes, themeId);
     if (!theme) return;
-    if (!confirm(`「${theme.name}」を削除しますか？\n（記録ごと完全に消えます）`)) return;
-    removeFromHistory(calcThemeProgress(theme).completed); // 日々の記録からも減らす
+    if (!confirm(`「${theme.name}」を削除しますか？\n（元に戻せません）`)) return;
     removeThemeById(state.themes, themeId);
     state.goals.forEach(g => { g.themeIds = g.themeIds.filter(id => id !== themeId); });
     renderArchiveList();
@@ -1253,9 +1071,7 @@
     // themes
     openAddTheme: (parentId) => openThemeModal(parentId || null, null),
     saveTheme, editTheme, toggleTheme, archiveTheme, deleteThemeFromModal,
-    openRecordModal, saveRecord, moveTheme,
-    // calendar / day edit
-    calPrev, calNext, openDayEdit, saveDay, clearDay,
+    moveTheme,
     liveUpdate: liveUpdateProgress, commitUpdate, incrementTheme, decrementTheme,
     openBulkAdd, saveBulk,
     // goals

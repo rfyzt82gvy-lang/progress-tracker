@@ -1197,6 +1197,10 @@ select.form-input {
 .btn-danger-text { color: var(--color-danger); border-color: transparent; background: transparent; }
 .btn-danger-text:hover { background: rgba(248, 113, 113, 0.08); border-color: transparent; }
 
+/* 3カラムの統計（総数/完了/残り） */
+.stats-grid.stats-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.stats-grid.stats-grid-3 .stat-value { font-size: 1.5rem; }
+
 /* ----- Header menu button ----- */
 .btn-menu { font-size: 1.15rem; line-height: 1; padding: 5px 13px; letter-spacing: 1px; }
 

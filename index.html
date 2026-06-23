@@ -34,7 +34,7 @@
          ============================================================ -->
     <section class="view active" id="view-home">
 
-      <div class="stats-grid">
+      <div class="stats-grid stats-grid-3">
         <div class="stat-card">
           <div class="stat-label">総数</div>
           <div class="stat-value" id="stat-total">0</div>
@@ -43,17 +43,12 @@
         <div class="stat-card">
           <div class="stat-label">完了</div>
           <div class="stat-value" id="stat-completed">0</div>
-          <div class="stat-sub">視聴済み</div>
+          <div class="stat-sub">済み</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">今日</div>
-          <div class="stat-value" id="stat-today">0</div>
-          <div class="stat-sub">完了</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">連続</div>
-          <div class="stat-value" id="stat-streak">0</div>
-          <div class="stat-sub">日 継続</div>
+          <div class="stat-label">残り</div>
+          <div class="stat-value" id="stat-remaining">0</div>
+          <div class="stat-sub">未完了</div>
         </div>
       </div>
 
@@ -68,26 +63,6 @@
         <div class="overall-progress-detail">
           <span id="overall-detail-left">0 / 0 完了</span>
         </div>
-      </div>
-
-      <!-- Daily trend -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">日々の記録</span>
-          <span class="streak-badge" id="streak-badge">🔥 0日連続</span>
-        </div>
-        <div class="trend-chart" id="trend-chart"><!-- bars rendered by JS --></div>
-      </div>
-
-      <!-- Activity calendar -->
-      <div class="panel">
-        <div class="panel-header">
-          <button class="cal-nav" onclick="app.calPrev()" aria-label="前の月">‹</button>
-          <span class="panel-title" id="cal-title">活動カレンダー</span>
-          <button class="cal-nav" onclick="app.calNext()" aria-label="次の月">›</button>
-        </div>
-        <div class="calendar" id="calendar"><!-- rendered by JS --></div>
-        <p class="form-hint">日付をタップするとその日の記録を修正できます。</p>
       </div>
 
       <!-- Goals -->
@@ -177,7 +152,6 @@
         <p class="form-hint">URLを入れるとカードからタップで開けます。</p>
       </div>
       <div class="theme-edit-actions" id="theme-edit-actions" style="display:none;">
-        <button class="btn btn-sm" id="theme-record-btn" onclick="app.openRecordModal()">＋ 過去の記録を追加</button>
         <button class="btn btn-sm" onclick="app.moveTheme(-1)" title="上へ">↑ 上へ</button>
         <button class="btn btn-sm" onclick="app.moveTheme(1)" title="下へ">↓ 下へ</button>
         <button class="btn btn-sm" onclick="app.archiveTheme()">✓ 完了済みにする</button>
@@ -186,47 +160,6 @@
       <div class="modal-actions">
         <button class="btn" onclick="app.closeModal('theme-modal')">キャンセル</button>
         <button class="btn btn-primary" id="theme-save-btn" onclick="app.saveTheme()">保存</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Record (past log) Modal ===== -->
-  <div class="modal-overlay" id="record-modal">
-    <div class="modal" role="dialog" aria-labelledby="record-title">
-      <h3 class="modal-title" id="record-title">過去の記録を追加</h3>
-      <p class="form-hint" id="record-theme-name"></p>
-      <div class="form-group">
-        <label class="form-label" for="record-date-input">日付</label>
-        <input class="form-input" type="date" id="record-date-input">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="record-count-input">この日に進めた数</label>
-        <input class="form-input" type="number" id="record-count-input" placeholder="例: 3" min="1" inputmode="numeric">
-        <p class="form-hint">完了済みに加算し、その日付の記録（グラフ・連続記録）に反映します。</p>
-      </div>
-      <div class="modal-actions">
-        <button class="btn" onclick="app.closeModal('record-modal')">閉じる</button>
-        <button class="btn btn-primary" onclick="app.saveRecord()">追加</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Day edit Modal ===== -->
-  <div class="modal-overlay" id="day-modal">
-    <div class="modal" role="dialog" aria-labelledby="day-title">
-      <h3 class="modal-title" id="day-title">記録の修正</h3>
-      <p class="form-hint" id="day-date-label"></p>
-      <div class="form-group">
-        <label class="form-label" for="day-count-input">この日の記録数</label>
-        <input class="form-input" type="number" id="day-count-input" min="0" inputmode="numeric">
-        <p class="form-hint">日々のグラフ・カレンダー・連続記録の表示用の値です（完了済みの合計は変わりません）。</p>
-      </div>
-      <div class="modal-actions modal-actions-split">
-        <button class="btn btn-danger-text" onclick="app.clearDay()">この日を0にする</button>
-        <div class="modal-actions-right">
-          <button class="btn" onclick="app.closeModal('day-modal')">キャンセル</button>
-          <button class="btn btn-primary" onclick="app.saveDay()">保存</button>
-        </div>
       </div>
     </div>
   </div>
