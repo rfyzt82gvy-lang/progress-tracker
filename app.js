@@ -44,7 +44,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
   function getDefaultState() {
-    return { themes: [], goals: [], history: {}, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null, hideCompleted: false }, lastBackup: 0 };
+    return { themes: [], goals: [], history: {}, today: { date: '', count: 0 }, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null, hideCompleted: false }, lastBackup: 0 };
   }
   function migrateThemes(themes) {
     for (const t of themes) {
@@ -65,6 +65,7 @@
       if (!('goalFilter' in data.ui)) data.ui.goalFilter = null;
       if (!('hideCompleted' in data.ui)) data.ui.hideCompleted = false;
       data.lastBackup = data.lastBackup || 0;
+      data.today = data.today || { date: '', count: 0 };
       data.settings = data.settings || { defaultUnit: '本' };
       if (!data.settings.defaultUnit) data.settings.defaultUnit = '本';
       migrateThemes(data.themes);
@@ -98,9 +99,17 @@
 
   // ---- State ----
   let state = loadData();
-  // 履歴(日々の本数)を正しく取るため、直近コミット時点の総完了数を保持して差分で記録する
+  // 「今日の進捗」を正しく取るため、直近コミット時点の総完了数を保持して差分で集計する
   let committedCompleted = 0;
   function resyncCommitted() { committedCompleted = calcAllProgress(state.themes).completed; }
+  // 今日やった分（+/-・スライダーの差分のみ。日付が変わると自動リセット）
+  function addToday(delta) {
+    if (!delta) return;
+    const k = todayISO();
+    if (!state.today || state.today.date !== k) state.today = { date: k, count: 0 };
+    state.today.count = Math.max(0, state.today.count + delta);
+  }
+  function todayCount() { return (state.today && state.today.date === todayISO()) ? state.today.count : 0; }
 
   let persistTimer = null;
   function persist() {
@@ -285,6 +294,9 @@
     setText('overall-percent', `${percent.toFixed(1)}%`);
     document.getElementById('overall-bar').style.width = `${percent}%`;
     setText('overall-detail-left', `${completed} / ${total} 完了`);
+
+    setText('today-progress', todayCount());
+    setText('today-progress-unit', defaultUnit());
 
     renderGoalCards('home-goals', true);
   }
@@ -522,6 +534,9 @@
     const theme = findThemeById(state.themes, themeId);
     if (!theme) return;
     theme.completed = Math.max(0, Math.min(value, theme.total));
+    const now = calcAllProgress(state.themes).completed;
+    addToday(now - committedCompleted); // 今日やった分に反映（先に書き換わっても差分で正しく）
+    committedCompleted = now;
     liveUpdateProgress(themeId, theme.completed);
     persistNow();
   }
@@ -567,7 +582,6 @@
     const doneInput = document.getElementById('theme-done-input');
     const doneGroup = document.getElementById('theme-done-group');
     const noteInput = document.getElementById('theme-note-input');
-    const recordBtn = document.getElementById('theme-record-btn');
     const saveBtn = document.getElementById('theme-save-btn');
     const editActions = document.getElementById('theme-edit-actions');
 
@@ -584,7 +598,6 @@
       doneInput.value = isLeaf ? theme.completed : '';
       doneGroup.style.display = isLeaf ? '' : 'none';   // グループは完了が自動計算
       noteInput.value = theme.note || '';
-      recordBtn.style.display = isLeaf ? '' : 'none';   // 記録は末端テーマのみ
       saveBtn.setAttribute('data-edit-id', editId);
       saveBtn.removeAttribute('data-parent-id');
       editActions.style.display = '';

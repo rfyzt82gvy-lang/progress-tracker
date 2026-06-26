@@ -1201,6 +1201,13 @@ select.form-input {
 .stats-grid.stats-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .stats-grid.stats-grid-3 .stat-value { font-size: 1.5rem; }
 
+/* 今日の進捗（全体の進捗の下） */
+.today-progress-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; margin-bottom: 22px; background: var(--bg-1); border: 1px solid var(--border-0); border-radius: var(--radius-m); }
+.today-progress-label { font-size: 0.82rem; font-weight: 600; color: var(--text-1); }
+.today-progress-value { font-variant-numeric: tabular-nums; color: var(--text-0); }
+.today-progress-value strong { font-size: 1.35rem; font-weight: 700; }
+.today-progress-value span { font-size: 0.8rem; color: var(--text-1); margin-left: 3px; }
+
 /* リストの未完了だけトグル */
 .list-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .toggle-chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-0); background: var(--bg-1); color: var(--text-1); font-family: var(--font); font-size: 0.76rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }
