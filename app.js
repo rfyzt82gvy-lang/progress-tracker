@@ -110,6 +110,23 @@
     state.today.count = Math.max(0, state.today.count + delta);
   }
   function todayCount() { return (state.today && state.today.date === todayISO()) ? state.today.count : 0; }
+  // 今日やるべき合計＝各目標の「1日のノルマ」の合計
+  function todayTargetTotal() {
+    let sum = 0;
+    for (const g of state.goals) {
+      if (!g.deadline) continue;
+      const { total, completed } = calcGoalProgress(g);
+      const remaining = total - completed;
+      if (total === 0 || remaining <= 0) continue;
+      const calDays = getDaysRemaining(g.deadline);
+      if (calDays !== null && calDays < 0) continue; // 期限超過は除外
+      if (isRestToday(g)) continue;                  // 今日は休み
+      const hasRest = (g.restDays || []).length > 0;
+      const effDays = hasRest ? getWorkingDaysRemaining(g) : calDays;
+      if (effDays !== null && effDays > 0) sum += Math.max(1, Math.ceil(remaining / effDays));
+    }
+    return sum;
+  }
 
   let persistTimer = null;
   function persist() {
@@ -295,8 +312,22 @@
     document.getElementById('overall-bar').style.width = `${percent}%`;
     setText('overall-detail-left', `${completed} / ${total} 完了`);
 
-    setText('today-progress', todayCount());
-    setText('today-progress-unit', defaultUnit());
+    const tc = todayCount();
+    const tt = todayTargetTotal();
+    const valEl = document.getElementById('today-progress-value');
+    const trackEl = document.getElementById('today-progress-track');
+    const barEl = document.getElementById('today-progress-bar');
+    if (tt > 0) {
+      const pct = Math.round((tc / tt) * 100);
+      valEl.textContent = `${tc} / ${tt}${defaultUnit()} ・ ${pct}%`;
+      valEl.classList.toggle('done', tc >= tt);
+      trackEl.style.display = '';
+      barEl.style.width = Math.min(100, (tc / tt) * 100) + '%';
+    } else {
+      valEl.textContent = `${tc}${defaultUnit()}`;
+      valEl.classList.remove('done');
+      trackEl.style.display = 'none';
+    }
 
     renderGoalCards('home-goals', true);
   }
