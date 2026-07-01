@@ -1208,6 +1208,11 @@ select.form-input {
 .today-progress-value { font-size: 0.95rem; font-weight: 700; color: var(--text-0); font-variant-numeric: tabular-nums; }
 .today-progress-value.done { color: var(--color-done); }
 
+/* クラウド同期 */
+.sync-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.sync-state-label { font-size: 0.78rem; color: var(--text-2); }
+.sync-state-val { font-size: 0.78rem; font-weight: 600; color: var(--text-0); font-variant-numeric: tabular-nums; }
+
 /* リストの未完了だけトグル */
 .list-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .toggle-chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-0); background: var(--bg-1); color: var(--text-1); font-family: var(--font); font-size: 0.76rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }

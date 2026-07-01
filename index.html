@@ -302,6 +302,23 @@
         <p class="form-hint">新しいテーマの単位の初期値。テーマごとに個別変更もできます。</p>
       </div>
 
+      <div class="sync-divider">クラウド同期</div>
+      <div class="form-group">
+        <div id="sync-off">
+          <p class="form-hint">同じ「合言葉」を入れた端末どうしで、テーマ・目標・進捗を自動で同期します。</p>
+          <input class="form-input" type="text" id="sync-key-input" placeholder="合言葉（4文字以上・自分だけの秘密）" autocomplete="off">
+          <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="app.enableSync()">同期を有効にする</button></div>
+        </div>
+        <div id="sync-on" style="display:none;">
+          <div class="sync-row"><span class="sync-state-label">状態</span><span id="sync-status" class="sync-state-val">同期 有効</span></div>
+          <div class="btn-row">
+            <button class="btn btn-sm" onclick="app.syncNow()">今すぐ同期</button>
+            <button class="btn btn-sm btn-danger-text" onclick="app.disableSync()">同期を解除</button>
+          </div>
+          <p class="form-hint">変更は自動で保存・共有されます。競合時は「後から保存した方」が優先されます。</p>
+        </div>
+      </div>
+
       <div class="sync-divider">完了済み</div>
       <div class="form-group">
         <p class="form-hint">完了したテーマをここに片付けられます（記録は残り、いつでも振り返り・復元できます）。</p>

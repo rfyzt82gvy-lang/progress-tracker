@@ -44,7 +44,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
   function getDefaultState() {
-    return { themes: [], goals: [], history: {}, today: { date: '', count: 0 }, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null, hideCompleted: false }, lastBackup: 0 };
+    return { themes: [], goals: [], history: {}, today: { date: '', count: 0 }, settings: { defaultUnit: '本' }, ui: { view: 'home', goalFilter: null, hideCompleted: false }, rev: 0, lastBackup: 0 };
   }
   function migrateThemes(themes) {
     for (const t of themes) {
@@ -66,6 +66,7 @@
       if (!('hideCompleted' in data.ui)) data.ui.hideCompleted = false;
       data.lastBackup = data.lastBackup || 0;
       data.today = data.today || { date: '', count: 0 };
+      if (typeof data.rev !== 'number') data.rev = 0;
       data.settings = data.settings || { defaultUnit: '本' };
       if (!data.settings.defaultUnit) data.settings.defaultUnit = '本';
       migrateThemes(data.themes);
@@ -135,8 +136,106 @@
   }
   function persistNow() {
     if (persistTimer) clearTimeout(persistTimer);
+    // データ変更＝版(rev)を更新してクラウド同期へ（有効時のみ）
+    state.rev = Date.now();
     saveData(state);
     persistTimer = null;
+    scheduleSyncPush();
+  }
+
+  // ===========================================================
+  //  クラウド同期（Cloud Run + Turso / 合言葉方式・後勝ち）
+  // ===========================================================
+  const SYNC_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8791'
+    : 'https://progress-sync-557954279479.asia-northeast1.run.app';
+  const SYNC_KEY_LS = 'pt_sync_key';
+  function syncKey() { return localStorage.getItem(SYNC_KEY_LS) || ''; }
+  function syncEnabled() { return !!syncKey(); }
+  let syncPushTimer = null;
+  let syncBusy = false;
+
+  function setSyncStatus(text) {
+    const el = document.getElementById('sync-status');
+    if (el) el.textContent = text;
+  }
+  function scheduleSyncPush() {
+    if (!syncEnabled()) return;
+    if (syncPushTimer) clearTimeout(syncPushTimer);
+    syncPushTimer = setTimeout(syncPush, 1500);
+  }
+  async function syncPush() {
+    if (!syncEnabled()) return;
+    try {
+      setSyncStatus('同期中…');
+      const res = await fetch(SYNC_API + '/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Sync-Key': syncKey() },
+        body: JSON.stringify({ data: JSON.stringify(state), updated_at: String(state.rev || 0) }),
+      });
+      if (!res.ok) throw new Error('push failed ' + res.status);
+      setSyncStatus('同期済み ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+    } catch (e) { setSyncStatus('同期エラー（オフライン？）'); }
+  }
+  // 起動時などにクラウドと突き合わせ：新しい方を採用
+  async function syncPull(opts) {
+    if (!syncEnabled() || syncBusy) return;
+    syncBusy = true;
+    try {
+      setSyncStatus('確認中…');
+      const res = await fetch(SYNC_API + '/api/state', { headers: { 'X-Sync-Key': syncKey() } });
+      if (!res.ok) throw new Error('pull failed ' + res.status);
+      const body = await res.json();
+      const localRev = state.rev || 0;
+      if (body.data) {
+        const cloudRev = Number(body.updated_at) || 0;
+        if (cloudRev > localRev) {
+          const imported = migrate(JSON.parse(body.data));
+          state = imported;
+          resyncCommitted();
+          saveData(state); // revは採用したクラウド値のまま（再pushしない）
+          switchView(state.ui.view || 'home');
+          setSyncStatus('同期済み（最新を取得）');
+          if (opts && opts.toast) showToast('クラウドから最新を取得しました');
+          syncBusy = false;
+          return;
+        } else if (localRev > cloudRev) {
+          syncBusy = false;
+          await syncPush();
+          return;
+        }
+        setSyncStatus('同期済み（最新）');
+      } else {
+        // クラウドが空 → ローカルを初回アップロード
+        syncBusy = false;
+        await syncPush();
+        return;
+      }
+    } catch (e) { setSyncStatus('同期エラー（オフライン？）'); }
+    syncBusy = false;
+  }
+  function enableSync() {
+    const input = document.getElementById('sync-key-input');
+    const key = (input.value || '').trim();
+    if (key.length < 4) { showToast('合言葉は4文字以上にしてください'); return; }
+    localStorage.setItem(SYNC_KEY_LS, key);
+    renderSyncUI();
+    syncPull({ toast: true });
+    showToast('クラウド同期を有効にしました');
+  }
+  function disableSync() {
+    if (!confirm('クラウド同期を解除しますか？（この端末のデータは残ります）')) return;
+    localStorage.removeItem(SYNC_KEY_LS);
+    renderSyncUI();
+    showToast('クラウド同期を解除しました');
+  }
+  function renderSyncUI() {
+    const on = syncEnabled();
+    const onBox = document.getElementById('sync-on');
+    const offBox = document.getElementById('sync-off');
+    if (onBox) onBox.style.display = on ? '' : 'none';
+    if (offBox) offBox.style.display = on ? 'none' : '';
+    if (on) setSyncStatus('同期 有効');
   }
 
   // ---- Unit helpers ----
@@ -1023,9 +1122,12 @@
   // ===========================================================
   function openMenu() {
     document.getElementById('default-unit-input').value = defaultUnit();
+    document.getElementById('sync-key-input').value = '';
+    renderSyncUI();
     renderArchiveList();
     showModal('menu-modal');
   }
+  function syncNow() { syncPull({ toast: true }); }
   function saveMenu() {
     const u = document.getElementById('default-unit-input').value.trim() || '本';
     state.settings.defaultUnit = u;
@@ -1148,6 +1250,8 @@
     onGoalCbChange, goalSelectAll, goalSelectNone,
     // menu / 完了済み
     openMenu, saveMenu, unarchiveTheme, deleteArchivedTheme, resetAllData,
+    // cloud sync
+    enableSync, disableSync, syncNow,
     // sync
     openSync: openSyncModal, generateSync: generateAndShowSyncCode, copySync: copySyncCode,
     loadSync: loadSyncCode, exportJSON: exportAllJSON, handleFileImport,
@@ -1159,6 +1263,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     resyncCommitted();
     switchView(state.ui.view || 'home');
+    if (syncEnabled()) syncPull({ toast: false });   // 起動時にクラウドと突き合わせ
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then((reg) => {
         // 新バージョンを検知したら自動で取り込んで一度だけ再読み込み
