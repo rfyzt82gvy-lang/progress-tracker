@@ -175,7 +175,7 @@
       });
       if (!res.ok) throw new Error('push failed ' + res.status);
       setSyncStatus('同期済み ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
-    } catch (e) { setSyncStatus('同期エラー（オフライン？）'); }
+    } catch (e) { console.warn('[sync] push error', e); setSyncStatus('同期エラー（オフライン？）'); }
   }
   // 起動時などにクラウドと突き合わせ：新しい方を採用
   async function syncPull(opts) {
@@ -211,14 +211,20 @@
         await syncPush();
         return;
       }
-    } catch (e) { setSyncStatus('同期エラー（オフライン？）'); }
+    } catch (e) { console.warn('[sync] pull error', e); setSyncStatus('同期エラー（オフライン？）'); }
     syncBusy = false;
   }
-  function enableSync() {
+  // 合言葉は日本語などでもHTTPヘッダに載るよう SHA-256(hex/ASCII) にしてから使う
+  async function sha256hex(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function enableSync() {
     const input = document.getElementById('sync-key-input');
     const key = (input.value || '').trim();
     if (key.length < 4) { showToast('合言葉は4文字以上にしてください'); return; }
-    localStorage.setItem(SYNC_KEY_LS, key);
+    const hex = await sha256hex(key);
+    localStorage.setItem(SYNC_KEY_LS, hex);
     renderSyncUI();
     syncPull({ toast: true });
     showToast('クラウド同期を有効にしました');
