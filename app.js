@@ -1269,7 +1269,15 @@
   document.addEventListener('DOMContentLoaded', () => {
     resyncCommitted();
     switchView(state.ui.view || 'home');
-    if (syncEnabled()) syncPull({ toast: false });   // 起動時にクラウドと突き合わせ
+    if (syncEnabled()) {
+      const k = syncKey();
+      if (!/^[0-9a-f]{64}$/.test(k)) {
+        // 旧版で生の合言葉が保存されている場合はハッシュに自動移行してから同期
+        sha256hex(k).then((hex) => { localStorage.setItem(SYNC_KEY_LS, hex); syncPull({ toast: false }); });
+      } else {
+        syncPull({ toast: false });   // 起動時にクラウドと突き合わせ
+      }
+    }
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then((reg) => {
         // 新バージョンを検知したら自動で取り込んで一度だけ再読み込み
